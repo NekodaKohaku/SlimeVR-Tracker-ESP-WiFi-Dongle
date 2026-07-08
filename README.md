@@ -20,6 +20,8 @@ ESP32-S3 Dongle を PC に接続すると、Dongle が独立した SoftAP ホッ
 
 現在、このファームウェアは **ESP32-S3 Dongle でのみ完全にテストされています**。
 
+- ✅ **テスト済み機材:** ESP32-S3-WROOM-1
+
 ESP32-S2 でも理論上は動作する可能性がありますが、最大接続数と安定性は未確認です。
 
 ### ⚙️ デフォルト WiFi 設定
@@ -70,7 +72,7 @@ src/WifiDongleConfig.h
 - <https://github.com/SlimeVR/SlimeVR-Tracker-ESP-Receiver>
 - <https://github.com/SlimeVR/SlimeVR-Tracker-ESP/tree/espnow>
 - <https://github.com/mitzey234/SlimeVR-Tracker-ESP/tree/esp-now>
-- <https://github.com/Kirisame-Nanoha/mocopi-slimevr-hid-receiver>
+- <https://github.com/Kirisame-Nanoha/mocopi-slimevr-hid-receiver/tree/main>
 
 ---
 
@@ -89,6 +91,8 @@ Because it uses special settings that ordinary routers cannot adjust, it can sav
 ### ⚠️ Hardware Compatibility
 
 This firmware has currently been fully tested only on the **ESP32-S3 Dongle**.
+
+- ✅ **Tested device:** ESP32-S3-WROOM-1
 
 ESP32-S2 may theoretically work, but the maximum connection count and stability are not yet confirmed.
 
@@ -140,7 +144,7 @@ Main options:
 - <https://github.com/SlimeVR/SlimeVR-Tracker-ESP-Receiver>
 - <https://github.com/SlimeVR/SlimeVR-Tracker-ESP/tree/espnow>
 - <https://github.com/mitzey234/SlimeVR-Tracker-ESP/tree/esp-now>
-- <https://github.com/Kirisame-Nanoha/mocopi-slimevr-hid-receiver>
+- <https://github.com/Kirisame-Nanoha/mocopi-slimevr-hid-receiver/tree/main>
 
 ---
 
@@ -159,6 +163,8 @@ Main options:
 ### ⚠️ 硬體相容性
 
 目前此韌體已完整測試於 **ESP32-S3 Dongle**。
+
+- ✅ **測試設備:** ESP32-S3-WROOM-1
 
 ESP32-S2 理論上可能可行，但最大連線數與穩定性尚未確認。
 
@@ -210,4 +216,4 @@ src/WifiDongleConfig.h
 - <https://github.com/SlimeVR/SlimeVR-Tracker-ESP-Receiver>
 - <https://github.com/SlimeVR/SlimeVR-Tracker-ESP/tree/espnow>
 - <https://github.com/mitzey234/SlimeVR-Tracker-ESP/tree/esp-now>
-- <https://github.com/Kirisame-Nanoha/mocopi-slimevr-hid-receiver>
+- <https://github.com/Kirisame-Nanoha/mocopi-slimevr-hid-receiver/tree/main>
