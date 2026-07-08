@@ -49,7 +49,7 @@ SSID: SlimeDongle
 Password: slimedongle12345
 ```
 
-5. **装着して使用開始**：tracker の接続が成功すると、SlimeVR Server の画面に直接表示されます。追加の pairing 手順は不要です。
+5. **装着して使用開始**：tracker の接続が成功すると、SlimeVR Server の画面に直接表示されます。
 
 ---
 
@@ -102,7 +102,7 @@ SSID: SlimeDongle
 Password: slimedongle12345
 ```
 
-5. **Wear and start**: Once connected, the trackers will appear directly in SlimeVR Server. No additional pairing procedure is required.
+5. **Wear and start**: Once connected, the trackers will appear directly in SlimeVR Server.
 
 ---
 
@@ -155,4 +155,4 @@ SSID: SlimeDongle
 Password: slimedongle12345
 ```
 
-5. **完成配戴**：追蹤器連接成功後，會直接顯示在 SlimeVR Server 介面中（不需任何額外的配對手續），即可開始使用。
+5. **完成配戴**：追蹤器連接成功後，會直接顯示在 SlimeVR Server 介面中，即可開始使用。
