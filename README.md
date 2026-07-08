@@ -1,50 +1,134 @@
-# SlimeVR HID ESPNow Dongle
+# SlimeVR Tracker ESP WiFi Dongle
 
-This is a project that implements an alternative communication method for
-SlimeVR trackers using the [ESPNow Protocol](https://www.espressif.com/en/solutions/low-power-solutions/esp-now) 
-available on ESP devices.
+SlimeVR ESP tracker WiFi dongle firmware.
+
+This project turns an ESP32-S3 dongle into a dedicated WiFi receiver for SlimeVR
+ESP trackers. The dongle creates its own SoftAP and forwards tracker data to the
+PC through USB HID, so trackers can connect to the dongle directly instead of
+using a home WiFi router.
+
+Default WiFi settings:
+
+|Setting|Value|
+|---|---|
+|SSID|`SlimeDongle`|
+|Password|`slimedongle12345`|
+|UDP port|`6969`|
+|Recommended max trackers|`10`|
+
+## Modes
+
+### Official-compatible mode
+
+This is the main mode.
+
+Stock SlimeVR ESP tracker firmware can connect to the dongle without tracker
+firmware modifications. The dongle emulates the SlimeVR UDP server protocol and
+then converts the received tracker data into HID packets for SlimeVR Server.
+
+Enable this mode with:
+
+```ini
+-DUSE_OFFICIAL_PROXY
+```
+
+### Custom WiFi tracker mode
+
+This mode is for custom tracker firmware that sends compact UDP packets directly
+to the dongle.
+
+Disable `USE_OFFICIAL_PROXY` in `platformio.ini` to build this mode. Custom
+trackers need to be paired with the dongle before use.
+
+## Configuration
+
+User-facing settings are in:
+
+```text
+src/WifiDongleConfig.h
+```
+
+Common settings include:
+
+- SoftAP SSID and password
+- WiFi channel
+- DTIM period
+- official-mode heartbeat interval
+- tracker timeout
+- maximum tracker count
+
+The default maximum tracker count is set to `10` for ESP32 SoftAP stability.
 
 ## Building and Flashing
 
-To firmware currently only supports ESP32-S2 based dongles, however ESP32-S3
-might be added in the future. To get a board working, add the necessary JSON file 
-in the `boards/` directory and create a new directory and `pins_arduino.h` file
-under `variants/`. After that, adding a new `env` definition in the
-platformio.ini file should work.
+The main target is:
 
-To flash the dongle, run the `pio run -t upload` command.
+```text
+slime_dongle_s3
+```
+
+Build:
+
+```sh
+pio run -e slime_dongle_s3
+```
+
+Upload:
+
+```sh
+pio run -e slime_dongle_s3 -t upload
+```
+
+After building, PlatformIO outputs firmware files under:
+
+```text
+.pio/build/slime_dongle_s3/
+```
+
+The combined factory image is:
+
+```text
+.pio/build/slime_dongle_s3/firmware.factory.bin
+```
 
 ## Usage
 
-To use the dongle, it needs to be connected to a PC through USB. You also need
-your trackers to have [compatible firmware](https://github.com/gorbit99/SlimeVR-Tracker-ESP/tree/dongle-support)
-flashed onto them.
+1. Flash the dongle firmware.
+2. Plug the dongle into the PC over USB.
+3. Configure trackers to connect to the dongle WiFi:
 
-The trackers will require pairing the first time you set them up. To achieve
-this, first you need to put the dongle into pairing mode by holding the button
-on it for about two seconds, then reset the trackers three times in a row,
-either by turning them off and on again in quick succession or by using the 
-physical reset button on the tracker. If the pairing was successful, the tracker 
-will blink three times.
+```text
+SSID: SlimeDongle
+Password: slimedongle12345
+```
 
-After pairing, when you turn the tracker on from that point on, it will attempt to
-connect to its saved dongle. A successful connection will be indicated by two
-quick flashes on both the dongle and the tracker itself.
+4. Start SlimeVR Server.
+5. Trackers should appear through the dongle as HID tracker data.
 
-If everything went as expected, the tracker should now appear in the SlimeVR
-server.
+For official-compatible mode, tracker firmware pairing is not required. For
+custom WiFi tracker mode, hold the dongle button to enter pairing mode, then
+pair the custom tracker firmware.
 
-If you ever want to pair the tracker to a different dongle, just redo the
-pairing procedure.
+## Button Actions
 
-## Errors
-
-In case something goes wrong, the dongle should indicate an error by flashing
-its LED. Long blinks (0.5 seconds) represent a 1 bit, short blinks (0.1 seconds)
-represent a 0 bit. The following error codes are currently possible:
-
-|Code|Error|
+|Action|Result|
 |---|---|
-|0x01|Failed to initialize ESPNow|
-|0x02|Failed to add broadcast address as a sending destination|
-|0x03|Failed to register a callback for receiving messages|
+|Long press|Enter or exit custom tracker pairing mode|
+|Press 5 times|Reset saved custom tracker pairing data|
+
+The 5-press reset is mainly useful for custom WiFi tracker mode. It is usually
+not needed for official-compatible mode.
+
+## Troubleshooting
+
+- If a tracker cannot connect, unplug and replug the dongle first.
+- If SlimeVR Server still shows a tracker as disconnected after tracker reboot,
+  make sure you are using the latest firmware; the dongle sends reconnect status
+  packets and refreshes tracker registration when a tracker comes back online.
+- ESP32 SoftAP is most stable with up to 10 connected trackers.
+- In official-compatible mode, heartbeat should normally stay enabled.
+
+## License
+
+This project is based on SlimeVR firmware work and is distributed under the
+included MIT / Apache-2.0 license files.
