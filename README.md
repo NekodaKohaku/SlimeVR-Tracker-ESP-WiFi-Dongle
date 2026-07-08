@@ -1,158 +1,192 @@
-# SlimeVR Tracker ESP WiFi Dongle Receiver Firmware
+# SlimeVR ESP Tracker WiFi Dongle
+
+[日本語](#日本語) | [English](#english) | [中文](#中文)
+
+---
 
 ## 日本語
 
-本プロジェクトは ESP32-S3 Dongle 向けに開発された firmware です。ESP32-S3 Dongle を SlimeVR ESP tracker 専用の WiFi receiver として動作させます。Dongle は独立した SoftAP hotspot を作成し、tracker から UDP data を受信して、USB HID 経由で PC 側の SlimeVR Server へ直接転送します。
+本プロジェクトは、ESP32-S3 を SlimeVR ESP トラッカー専用の WiFi レシーバーにするファームウェアです。
 
-この方式により、家庭用 WiFi による高 latency や切断問題を軽減し、より安定した motion capture 体験を提供します。
+ESP32-S3 Dongle を PC に接続すると、Dongle が独立した SoftAP ホットスポットを作成し、トラッカーから受信した UDP データを USB HID 経由で PC 側の SlimeVR Server へ転送します。
 
-## ⚠️ ハードウェア互換性
+これにより、家庭用 WiFi の距離、混雑、2.4GHz 干渉などによる遅延や切断の問題を軽減できます。
 
-現在、この firmware は ESP32-S3 Dongle でのみ完全にテストされています。
+また、一般的なルーターでは設定できない特殊な設定を使用しているため、通常のルーターと比べて約 10% の電力を節約できます。
+
+🖼️ 実測データ（投稿）: <https://x.com/NekodaKohaku/status/2067842378573254682>
+
+### ⚠️ ハードウェア互換性
+
+現在、このファームウェアは **ESP32-S3 Dongle でのみ完全にテストされています**。
 
 ESP32-S2 でも理論上は動作する可能性がありますが、最大接続数と安定性は未確認です。
 
-## ⚙️ デフォルト WiFi 設定
+### ⚙️ デフォルト WiFi 設定
 
-|設定項目|デフォルト値|備考|
-|---|---|---|
-|SSID|`SlimeDongle`|tracker が接続する Wi-Fi 名|
-|Password|`slimedongle12345`|接続 password|
-|UDP Port|`6969`|SlimeVR default port|
-|最大接続数|`10`|ESP32 SoftAP の性能制限による|
+| 設定項目 | デフォルト値 | 備考 |
+| :--- | :--- | :--- |
+| **SSID** | `SlimeDongle` | トラッカーが接続する WiFi 名 |
+| **パスワード** | `slimedongle12345` | 接続パスワード |
+| **UDP ポート** | `6969` | SlimeVR のデフォルトポート |
+| **最大接続数** | `10` | ESP32 SoftAP の最大制限 |
 
-## 🛠️ 高度な設定
+### 🛠️ 設定変更
 
-WiFi 名、password、または performance tuning を変更する場合は、以下の file を編集してください。
+WiFi 名、パスワード、チャンネルなどを変更する場合は、以下のファイルを編集してください。
 
 ```text
 src/WifiDongleConfig.h
 ```
 
-調整可能な主な項目:
+主な設定項目:
 
-- SoftAP SSID / password と WiFi channel
-- DTIM Period（省電力と latency に影響）
-- Heartbeat Interval
-- Tracker Timeout
+- SoftAP の SSID / パスワード
+- WiFi チャンネル
+- トラッカーのタイムアウト
+- ハートビート間隔
 - 最大接続数
 
-## 🚀 クイックスタート
+### 🚀 クイックスタート
 
-1. **Firmware を flash**：この firmware を ESP32-S3 Dongle に flash します。
-2. **PC に接続**：Dongle を PC の USB port に接続します。
-3. **Server を起動**：PC 上で SlimeVR Server を起動します。
-4. **Tracker を設定**：SlimeVR tracker の WiFi 接続情報を以下に変更します。
+1. ファームウェアを ESP32-S3 Dongle に書き込みます。
+2. Dongle を PC の USB ポートに接続します。
+3. PC 上で SlimeVR Server を起動します。
+4. SlimeVR トラッカーの WiFi 設定を以下に変更します。
 
-```text
-SSID: SlimeDongle
-Password: slimedongle12345
-```
+   ```text
+   SSID: SlimeDongle
+   Password: slimedongle12345
+   ```
 
-5. **装着して使用開始**：tracker の接続が成功すると、SlimeVR Server の画面に直接表示されます。
+5. トラッカーが接続されると、SlimeVR Server に表示されます。
+
+> 💡 **備考:**
+> パソコン背面の USB ポートへの接続を推奨します。
+> パソコンの設置位置が低い場合は、USB 延長ケーブルを使用してより高い位置に設置することをお勧めします。
 
 ---
 
 ## English
 
-This project is firmware developed for ESP32-S3 Dongle. It turns the ESP32-S3 Dongle into a dedicated WiFi receiver for SlimeVR ESP trackers. The dongle creates an independent SoftAP hotspot, receives UDP data from trackers, and forwards it directly to the PC-side SlimeVR Server through USB HID.
+This project turns an ESP32-S3 into a dedicated WiFi receiver for SlimeVR ESP Trackers.
 
-This approach can reduce high latency and disconnection issues caused by home WiFi, providing a more stable motion capture experience.
+By plugging the ESP32-S3 Dongle into your PC, the dongle creates its own independent SoftAP hotspot, receives UDP data from Trackers, and forwards the data to the PC-side SlimeVR Server through USB HID.
 
-## ⚠️ Hardware Compatibility
+This can help reduce latency and disconnection issues caused by home WiFi distance, congestion, or 2.4GHz interference.
 
-This firmware has currently been fully tested only on ESP32-S3 Dongle.
+Because it uses special settings that ordinary routers cannot adjust, it can save about 10% power compared to a regular router.
+
+🖼️ Measurement (post): <https://x.com/NekodaKohaku/status/2067842378573254682>
+
+### ⚠️ Hardware Compatibility
+
+This firmware has currently been fully tested only on the **ESP32-S3 Dongle**.
 
 ESP32-S2 may theoretically work, but the maximum connection count and stability are not yet confirmed.
 
-## ⚙️ Default WiFi Settings
+### ⚙️ Default WiFi Settings
 
-|Setting|Default Value|Note|
-|---|---|---|
-|SSID|`SlimeDongle`|Wi-Fi name trackers should connect to|
-|Password|`slimedongle12345`|Connection password|
-|UDP Port|`6969`|SlimeVR default communication port|
-|Maximum Connections|`10`|Limited by ESP32 SoftAP hardware performance|
+| Setting | Default Value | Note |
+| :--- | :--- | :--- |
+| **SSID** | `SlimeDongle` | WiFi name Trackers should connect to |
+| **Password** | `slimedongle12345` | Connection password |
+| **UDP Port** | `6969` | SlimeVR default port |
+| **Maximum Connections** | `10` | Maximum limit of ESP32 SoftAP |
 
-## 🛠️ Advanced Customization
+### 🛠️ Configuration
 
-To change the WiFi name, password, or performance tuning options, edit:
+To change the WiFi name, password, channel, or other options, edit:
 
 ```text
 src/WifiDongleConfig.h
 ```
 
-Core adjustable parameters:
+Main options:
 
-- SoftAP SSID / password and WiFi channel
-- DTIM Period, which affects power saving and latency
-- Heartbeat Interval
-- Tracker Timeout
-- Maximum connection limit
+- SoftAP SSID / password
+- WiFi channel
+- Tracker timeout
+- Heartbeat interval
+- Maximum connection count
 
-## 🚀 Quick Start
+### 🚀 Quick Start
 
-1. **Flash firmware**: Flash this firmware to your ESP32-S3 Dongle.
-2. **Connect to PC**: Plug the dongle into a USB port on your PC.
-3. **Start service**: Open SlimeVR Server on your PC.
-4. **Configure trackers**: Change your SlimeVR tracker WiFi settings to:
+1. Flash this firmware to your ESP32-S3 Dongle.
+2. Plug the dongle into a USB port on your PC.
+3. Start SlimeVR Server on your PC.
+4. Change your SlimeVR Tracker WiFi settings to:
 
-```text
-SSID: SlimeDongle
-Password: slimedongle12345
-```
+   ```text
+   SSID: SlimeDongle
+   Password: slimedongle12345
+   ```
 
-5. **Wear and start**: Once connected, the trackers will appear directly in SlimeVR Server.
+5. Once connected, the Trackers should appear in SlimeVR Server.
+
+> 💡 **Note:**
+> It is recommended to connect the dongle to the USB port on the back of your PC.
+> If your PC is placed at a lower level, it is advised to use a USB extension cable to position the dongle at a higher location.
 
 ---
 
 ## 中文
 
-本專案專為 ESP32-S3 Dongle 開發，將其轉化為 SlimeVR ESP 追蹤器的專用 WiFi 接收器。Dongle 會自行建立獨立的 SoftAP 熱點接收追蹤器的 UDP 數據，並透過 USB HID 直接轉送至 PC 端的 SlimeVR Server。
+本專案是將 ESP32-S3 變成 SlimeVR ESP 追蹤器專用的 WiFi 接收器的韌體。
 
-此方案可有效降低家用 WiFi 的高延遲與斷線問題，提供更穩定的動態捕捉體驗。
+將 ESP32-S3 Dongle 插在電腦上後，Dongle 會建立獨立的 SoftAP 熱點，接收追蹤器傳來的 UDP 資料，並透過 USB HID 將資料轉送到 PC 端的 SlimeVR Server。
 
-## ⚠️ 硬體相容性備註
+這樣可以減少因家用 WiFi 距離、壅塞或 2.4GHz 干擾造成的延遲與斷線問題。
 
-目前此韌體僅在 ESP32-S3 Dongle 上進行過完整測試。
+由於使用了一般路由器無法調整的特殊設定，與一般路由器相比可節省約 10% 的電力。
 
-ESP32-S2 理論上可行，但最大可連線數量與穩定性尚未明確。
+🖼️ 實測數據（貼文）: <https://x.com/NekodaKohaku/status/2067842378573254682>
 
-## ⚙️ 預設 WiFi 設定
+### ⚠️ 硬體相容性
 
-|設定項目|預設值|備註|
-|---|---|---|
-|SSID|`SlimeDongle`|追蹤器要連線的 Wi-Fi 名稱|
-|Password|`slimedongle12345`|連線密碼|
-|UDP Port|`6969`|SlimeVR 預設通訊埠|
-|最大連線數|`10`|受限於 ESP32 SoftAP 的硬體效能限制|
+目前此韌體已完整測試於 **ESP32-S3 Dongle**。
 
-## 🛠️ 進階自訂配置
+ESP32-S2 理論上可能可行，但最大連線數與穩定性尚未確認。
 
-若需修改 WiFi 名稱、密碼或進行效能調優，請編輯以下檔案：
+### ⚙️ 預設 WiFi 設定
+
+| 設定項目 | 預設值 | 備註 |
+| :--- | :--- | :--- |
+| **SSID** | `SlimeDongle` | 追蹤器要連線的 WiFi 名稱 |
+| **密碼** | `slimedongle12345` | 連線密碼 |
+| **UDP 埠** | `6969` | SlimeVR 預設埠 |
+| **最大連線數** | `10` | ESP32 SoftAP 的最大限制 |
+
+### 🛠️ 設定修改
+
+若要修改 WiFi 名稱、密碼、頻道或其他設定，請編輯：
 
 ```text
 src/WifiDongleConfig.h
 ```
 
-可調整的核心參數：
+主要可調整項目：
 
-- SoftAP SSID / 密碼與 WiFi 頻道（Channel）
-- DTIM Period（影響省電與延遲）
-- 心跳包間隔（Heartbeat Interval）
-- 追蹤器逾時斷線判定（Tracker Timeout）
-- 最大連線數量上限
+- SoftAP 的 SSID / 密碼
+- WiFi 頻道
+- 追蹤器逾時
+- 心跳間隔
+- 最大連線數
 
-## 🚀 快速上手指南
+### 🚀 快速上手
 
-1. **燒錄韌體**：將本韌體燒錄至您的 ESP32-S3 Dongle 中。
-2. **連接電腦**：將 Dongle 插上 PC 的 USB 埠。
-3. **啟動服務**：開啟電腦上的 SlimeVR Server。
-4. **設定追蹤器**：將您的 SlimeVR 追蹤器 WiFi 連線資訊修改為：
+1. 將韌體燒錄到 ESP32-S3 Dongle。
+2. 將 Dongle 插到 PC 的 USB 埠。
+3. 啟動 PC 上的 SlimeVR Server。
+4. 將 SlimeVR 追蹤器的 WiFi 設定改成：
 
-```text
-SSID: SlimeDongle
-Password: slimedongle12345
-```
+   ```text
+   SSID: SlimeDongle
+   Password: slimedongle12345
+   ```
 
-5. **完成配戴**：追蹤器連接成功後，會直接顯示在 SlimeVR Server 介面中，即可開始使用。
+5. 追蹤器連線成功後，會顯示在 SlimeVR Server 中。
+
+> 💡 **備註：**
+> 建議將 Dongle 接到電腦後面的 USB 插孔。
+> 如果電腦位置較低，建議使用 USB 延長線將其放到較高的位置。
