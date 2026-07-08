@@ -1,0 +1,48 @@
+{
+    "build": {
+      "arduino": {
+        "ldscript": "esp32s2_out.ld"
+      },
+      "core": "esp32",
+      "extra_flags": [
+        "-DARDUINO_SLIME_DONGLE_S2",
+        "-DBOARD_HAS_PSRAM",
+        "-DARDUINO_USB_CDC_ON_BOOT=1",
+        "-DARDUINO_USB_MODE=0"
+      ],
+      "f_cpu": "240000000L",
+      "f_flash": "80000000L",
+      "flash_mode": "dio",
+      "hwids": [
+        [
+          "0x1209",
+          "0x7690"
+        ]
+      ],
+      "mcu": "esp32s2",
+      "variant": "slime_dongle_s2"
+    },
+    "connectivity": [
+      "wifi"
+    ],
+    "debug": {
+      "openocd_target": "esp32s2.cfg"
+    },
+    "frameworks": [
+      "arduino",
+      "espidf"
+    ],
+    "name": "SlimeVR ESPNow Dongle",
+    "upload": {
+      "flash_size": "4MB",
+      "maximum_ram_size": 327680,
+      "maximum_size": 4194304,
+      "use_1200bps_touch": true,
+      "wait_for_upload_port": true,
+      "require_upload_port": true,
+      "speed": 921600
+    },
+    "url": "https://slimevr.dev",
+    "vendor": "SlimeVR"
+  }
+  

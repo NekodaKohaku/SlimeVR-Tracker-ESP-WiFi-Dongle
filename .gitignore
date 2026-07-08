@@ -1,0 +1,8 @@
+.pio
+.cache/
+.vscode/*
+/.vscode
+build/
+dist/
+cache/
+compile_commands.json
