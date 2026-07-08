@@ -65,6 +65,13 @@ src/WifiDongleConfig.h
 > パソコン背面の USB ポートへの接続を推奨します。
 > パソコンの設置位置が低い場合は、USB 延長ケーブルを使用してより高い位置に設置することをお勧めします。
 
+### 📚 参考
+
+- <https://github.com/SlimeVR/SlimeVR-Tracker-ESP-Receiver>
+- <https://github.com/SlimeVR/SlimeVR-Tracker-ESP/tree/espnow>
+- <https://github.com/mitzey234/SlimeVR-Tracker-ESP/tree/esp-now>
+- <https://github.com/Kirisame-Nanoha/mocopi-slimevr-hid-receiver>
+
 ---
 
 ## English
@@ -128,6 +135,13 @@ Main options:
 > It is recommended to connect the dongle to the USB port on the back of your PC.
 > If your PC is placed at a lower level, it is advised to use a USB extension cable to position the dongle at a higher location.
 
+### 📚 References
+
+- <https://github.com/SlimeVR/SlimeVR-Tracker-ESP-Receiver>
+- <https://github.com/SlimeVR/SlimeVR-Tracker-ESP/tree/espnow>
+- <https://github.com/mitzey234/SlimeVR-Tracker-ESP/tree/esp-now>
+- <https://github.com/Kirisame-Nanoha/mocopi-slimevr-hid-receiver>
+
 ---
 
 ## 中文
@@ -190,3 +204,10 @@ src/WifiDongleConfig.h
 > 💡 **備註：**
 > 建議將 Dongle 接到電腦後面的 USB 插孔。
 > 如果電腦位置較低，建議使用 USB 延長線將其放到較高的位置。
+
+### 📚 參考
+
+- <https://github.com/SlimeVR/SlimeVR-Tracker-ESP-Receiver>
+- <https://github.com/SlimeVR/SlimeVR-Tracker-ESP/tree/espnow>
+- <https://github.com/mitzey234/SlimeVR-Tracker-ESP/tree/esp-now>
+- <https://github.com/Kirisame-Nanoha/mocopi-slimevr-hid-receiver>
