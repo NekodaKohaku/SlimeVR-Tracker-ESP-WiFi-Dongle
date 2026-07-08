@@ -12,7 +12,7 @@ ESP32-S3 Dongle を PC に接続すると、Dongle が独立した SoftAP ホッ
 
 これにより、家庭用 WiFi の距離、混雑、2.4GHz 干渉などによる遅延や切断の問題を軽減できます。
 
-また、一般的なルーターでは設定できない特殊な設定を使用しているため、通常のルーターと比べて約 10% の電力を節約できます。
+また、一般的なルーターでは設定できない特殊な設定を使用しているため、通常のルーターと比べてトラッカーの電力を約 10% 節約できます。
 
 🖼️ 実測データ（投稿）: <https://x.com/NekodaKohaku/status/2067842378573254682>
 
@@ -75,7 +75,7 @@ By plugging the ESP32-S3 Dongle into your PC, the dongle creates its own indepen
 
 This can help reduce latency and disconnection issues caused by home WiFi distance, congestion, or 2.4GHz interference.
 
-Because it uses special settings that ordinary routers cannot adjust, it can save about 10% power compared to a regular router.
+Because it uses special settings that ordinary routers cannot adjust, it can save about 10% of the tracker's power compared to a regular router.
 
 🖼️ Measurement (post): <https://x.com/NekodaKohaku/status/2067842378573254682>
 
@@ -138,7 +138,7 @@ Main options:
 
 這樣可以減少因家用 WiFi 距離、壅塞或 2.4GHz 干擾造成的延遲與斷線問題。
 
-由於使用了一般路由器無法調整的特殊設定，與一般路由器相比可節省約 10% 的電力。
+由於使用了一般路由器無法調整的特殊設定，與一般路由器相比可節省約 10% 追蹤器的電力。
 
 🖼️ 實測數據（貼文）: <https://x.com/NekodaKohaku/status/2067842378573254682>
 
