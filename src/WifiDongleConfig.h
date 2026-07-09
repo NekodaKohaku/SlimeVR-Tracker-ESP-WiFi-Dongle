@@ -13,10 +13,10 @@ static constexpr const char *apSsid = "SlimeDongle";
 static constexpr const char *apPassword = "slimedongle12345";
 
 // WiFi チャンネルです。
-// 0 にすると公式互換モードでは起動時に 1/6/11 から空いているチャンネルを選びます。
-static constexpr uint8_t apChannel = 1;
+// 0 にすると、起動時に 1/6/11 から空いているチャンネルを自動で選びます。
+static constexpr uint8_t apChannel = 0;
 
-// 同時接続できる tracker 数です。ESP32 SoftAP の安定性を優先して 10 を推奨します。
+// 同時接続できる tracker 数です。最大 10 です。
 static constexpr uint8_t maxTrackers = 10;
 
 // AP を隠す場合は true にします。通常は false のままで大丈夫です。
