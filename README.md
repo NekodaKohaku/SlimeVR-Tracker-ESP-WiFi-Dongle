@@ -10,9 +10,9 @@
 
 ESP32-S3 Dongle を PC に接続すると、Dongle が独立した SoftAP ホットスポットを作成し、トラッカーから受信した UDP データを USB HID 経由で PC 側の SlimeVR Server へ転送します。
 
-これにより、家庭用 WiFi の距離、混雑、2.4GHz 干渉などによる遅延や切断の問題を軽減できます。
+これにより、家庭用 WiFi との距離や混雑、2.4GHz 帯の干渉などによる遅延や切断の問題を軽減できます。
 
-また、一般的なルーターでは設定できない特殊な設定を使用しているため、通常のルーターと比べてトラッカーの電力を約 10% 節約できます。
+また、一般的なルーターでは変更できない特殊な設定を使用しているため、通常のルーターと比べてトラッカーの消費電力を約 10% 削減できます。
 
 🖼️ 実測データ（投稿）: <https://x.com/NekodaKohaku/status/2067842378573254682>
 
@@ -48,13 +48,14 @@ src/WifiDongleConfig.h
 - トラッカーのタイムアウト
 - ハートビート間隔
 - 最大接続数
+- 複数 Dongle 用の一意な USB シリアル / SSID / パスワード
 
 ### 🚀 クイックスタート
 
 1. ファームウェアを ESP32-S3 Dongle に書き込みます。
 2. Dongle を PC の USB ポートに接続します。
 3. PC 上で SlimeVR Server を起動します。
-4. SlimeVR トラッカーの WiFi 設定を以下に変更します。
+4. SlimeVR トラッカーの WiFi 設定を以下のように変更します。
 
    ```text
    SSID: SlimeDongle
@@ -84,7 +85,7 @@ By plugging the ESP32-S3 Dongle into your PC, the dongle creates its own indepen
 
 This can help reduce latency and disconnection issues caused by home WiFi distance, congestion, or 2.4GHz interference.
 
-Because it uses special settings that ordinary routers cannot adjust, it can save about 10% of the tracker's power compared to a regular router.
+Because it uses special settings that ordinary routers cannot adjust, it can reduce the tracker's power consumption by about 10%.
 
 🖼️ Measurement (post): <https://x.com/NekodaKohaku/status/2067842378573254682>
 
@@ -120,6 +121,7 @@ Main options:
 - Tracker timeout
 - Heartbeat interval
 - Maximum connection count
+- Unique USB serial / SSID / password for multiple dongles
 
 ### 🚀 Quick Start
 
@@ -156,7 +158,7 @@ Main options:
 
 這樣可以減少因家用 WiFi 距離、壅塞或 2.4GHz 干擾造成的延遲與斷線問題。
 
-由於使用了一般路由器無法調整的特殊設定，與一般路由器相比可節省約 10% 追蹤器的電力。
+由於使用了一般路由器無法調整的特殊設定，相比之下可為追蹤器節省約 10% 的電力。
 
 🖼️ 實測數據（貼文）: <https://x.com/NekodaKohaku/status/2067842378573254682>
 
@@ -192,6 +194,7 @@ src/WifiDongleConfig.h
 - 追蹤器逾時
 - 心跳間隔
 - 最大連線數
+- 多台 Dongle 用的唯一 USB 序號 / SSID / 密碼
 
 ### 🚀 快速上手
 
