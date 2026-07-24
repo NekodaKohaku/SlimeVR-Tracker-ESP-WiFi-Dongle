@@ -22,6 +22,38 @@ static constexpr uint8_t maxTrackers = 10;
 // AP を隠す場合は true にします。通常は false のままで大丈夫です。
 static constexpr bool apHidden = false;
 
+// ===== 複数 dongle 同時利用の設定 =====
+// dongle を複数台同時に使う場合、各台に「一意な USB シリアル」と「一意な SSID」が
+// 必要です。そうしないと server が同じ dongle と誤認して統合してしまい(HID デバイスの
+// 統合)、tracker も別の dongle につながってしまうことがあります。
+//
+// autoUniqueUsbSerial: 既定 true。起動時にチップの MAC から一意な USB シリアルを
+//   自動生成します。USB シリアルは tracker の設定には使わないので、有効にしても
+//   既存の設定には影響せず、最も深刻な「複数台が server で統合される」問題を防げます。
+//   → true のままを推奨します。
+static constexpr bool autoUniqueUsbSerial = true;
+
+// autoUniqueSsidSuffix: 既定 false。true にすると apSsid の後ろに「-XXXX」(MAC 下位)を
+//   自動で付けます。例: "SlimeDongle-A1B2"。SSID が変わるので、tracker 側もその新しい
+//   SSID に書き換える必要があります。
+//   1 台のみの場合は false のままで大丈夫です(今の apSsid をそのまま使い、既存のペア
+//   リングに影響しません)。複数台のときだけ有効にしてください。起動時に「実際に使用する
+//   完全な SSID」をシリアルに出力するので、それを見て各 tracker を設定できます。
+//   → 一意性と「自分の SSID が分かること」を両立します。
+static constexpr bool autoUniqueSsidSuffix = false;
+
+// autoUniquePassword: 既定 false。true にするとパスワードが「apPassword + MAC 下位」に
+//   なり、各台で一意になります。autoUniqueSsidSuffix と組み合わせれば「各台で SSID も
+//   パスワードも異なり、ラベルに印刷する」製品向けの構成になります。
+//   tracker 側も新しいパスワードへの変更が必要です(起動時にシリアルへ出力するので、
+//   それを写せば OK です)。
+//   ⚠ セキュリティ注意: SoftAP の MAC(BSSID)は WiFi スキャンで見えてしまうため、
+//   「MAC から生成しただけ」のパスワードはアルゴリズムを知っている人には破られます。
+//   用途は「各台の初期パスワードを別々にする」(全台同一を避ける)ことで、強固な保護
+//   ではありません。本当にランダムにしたい場合は、初回起動時に乱数生成して NVS に保存
+//   する方式を推奨します(必要ならまた依頼してください)。
+static constexpr bool autoUniquePassword = false;
+
 // UDP ポートです。tracker 側と同じ値にしてください。
 static constexpr uint16_t udpPort = 6969;
 
@@ -40,7 +72,10 @@ static constexpr bool officialHeartbeatEnabled = true;
 static constexpr uint32_t officialHeartbeatIntervalMs = 2400;
 
 // Dongle 側で tracker をオフライン扱いにするまでの時間です。
-static constexpr uint32_t officialTrackerTimeoutMs = 3000;
+// 3000ms は heartbeat(2400) + DTIM(約300) + WiFi のジッタに対して短すぎて、
+// 一瞬の途切れで誤って「オフライン」と判定し、status を送ってしまう原因になっていました。
+// heartbeat 数回分をカバーできる 6000ms に緩和します。
+static constexpr uint32_t officialTrackerTimeoutMs = 6000;
 
 // ===== 客製 WiFi tracker モード =====
 // 実験用: 客製 tracker へ下り heartbeat を送って消費電流を比較するための設定です。

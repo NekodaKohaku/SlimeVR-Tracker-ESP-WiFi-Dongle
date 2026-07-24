@@ -37,6 +37,7 @@ private:
         bool used = false;
         bool online = true;     // 斷線時設 false → 停送 register/device_info
         uint8_t id = 0;
+        uint16_t sensorMask = 1;  // 此 tracker 出現過的 sensorId(bit0=主感測器,bit1..=副追蹤器)
         uint8_t mac[6] = {0};
         uint8_t batt = 0;
         uint8_t battV = 0;
@@ -79,10 +80,13 @@ private:
     // 同時操作 FIFO,必須鎖保護,否則高流量下指標競爭會掉包/亂序。
     portMUX_TYPE m_mux = portMUX_INITIALIZER_UNLOCKED;
 
+    static constexpr size_t MAX_SENSORS = 16;   // sensorId 為 4-bit(0..15)
+
     int findTracker(uint8_t id);
-    void pushStatus(uint8_t trackerId, uint8_t status);
+    // 以 HID device id(=(sensorId<<4)|trackerId)送 status 封包
+    void pushStatusHid(uint8_t hidId, uint8_t status);
     bool fifoEmpty() const { return (fifoHead == fifoTail) && !fifoFull; }
-    void fifoPush(const Packet &p, uint8_t trackerId);
+    void fifoPush(const Packet &p, uint8_t hidId);
     bool fifoPop(Packet &out);
 
     // 高優先 FIFO 操作
