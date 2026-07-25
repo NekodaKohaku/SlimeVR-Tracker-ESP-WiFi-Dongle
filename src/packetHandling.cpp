@@ -268,13 +268,15 @@ void PacketHandling::tick(HIDDevice &hidDevice) {
                 r[0] = 255; r[1] = hid;
                 for (int b = 0; b < 6; b++) r[2 + b] = ti.mac[5 - b];
                 if (s > 0) {
-                    // 副感測器位址防撞:ESP 工廠 MAC 的 mac[0](=這裡的 r[7])locally-administered
-                    // bit(0x02)一定是 0。這裡只把這個 bit 設成 1 → 副感測器位址「數學上」不可能
-                    // 等於任何主感測器的真 MAC(所以絕不會撞名/搶部位設定),其餘 MAC byte 保留原值,
-                    // server 顯示的位址仍看得出是同一顆的家族。再把最低 byte(r[2]=mac[5])加上 s,
-                    // 用來區分同一顆的多個副感測器、也讓短名和主感測器不同。
-                    // 這兩步都是真 MAC 的決定性函數,重開機後仍穩定 → 部位記憶照樣有效。
-                    r[7] = static_cast<uint8_t>(r[7] | 0x02);
+                    // 副感測器位址防撞:第一個 byte(r[7]=mac[0])整個換成合成值 0x02|(s<<4)。
+                    //  - 0x02 是 locally-administered bit,ESP 工廠 MAC 一定是 0
+                    //    → 副感測器位址不可能撞到任何真 MAC(主感測器)。
+                    //  - sensorId 放進高 nibble → 不同 sensorId 分屬不同位址區段,
+                    //    即使兩塊板子 MAC 連號、各帶多顆副感測器也不可能互撞。
+                    //    (只做 |0x02 的舊做法在「連號 MAC+兩顆副感測器」時 mac[5]+s 會撞)
+                    //  - r[2](=mac[5])再加 s,讓 server 短名與主感測器不同、好辨認。
+                    // 全部是真 MAC 的決定性函數,重開機後穩定 → 部位記憶照樣有效。
+                    r[7] = static_cast<uint8_t>(0x02 | (s << 4));
                     r[2] = static_cast<uint8_t>(r[2] + s);
                 }
                 slot++;
