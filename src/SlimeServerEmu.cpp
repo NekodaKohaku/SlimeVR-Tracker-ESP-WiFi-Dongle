@@ -4,6 +4,7 @@
 
 #include "SlimeServerEmu.h"
 #include "packetHandling.h"
+#include "configuration.h"
 #include "esp_wifi.h"
 
 SlimeServerEmu SlimeServerEmu::instance;
@@ -116,16 +117,6 @@ int SlimeServerEmu::findPeerByIp(const IPAddress &ip) {
 	return -1;
 }
 
-uint8_t SlimeServerEmu::allocTrackerId() {
-	for (uint8_t id = 0; id < kMaxTrackers; id++) {
-		bool taken = false;
-		for (size_t i = 0; i < kMaxTrackers; i++)
-			if (m_peers[i].used && m_peers[i].trackerId == id) { taken = true; break; }
-		if (!taken) return id;
-	}
-	return 0;
-}
-
 int SlimeServerEmu::findOrAddPeer(const uint8_t mac[6], const IPAddress &ip, uint16_t port, bool &isNew) {
 	isNew = false;
 	int idx = findPeerByMac(mac);
@@ -134,17 +125,27 @@ int SlimeServerEmu::findOrAddPeer(const uint8_t mac[6], const IPAddress &ip, uin
 		m_peers[idx].port = port;
 		return idx;
 	}
+	// trackerId 改用持久化配對表(LittleFS):同一顆 MAC 永遠拿到同一個 id,dongle 重開機不變。
+	// 若照連線順序分配,重開後 id 洗牌:主感測器的 hidId 都是 server 見過的 → 資料流進
+	// 「別顆的舊欄位」(部位互換,難察覺);副感測器 hidId=(sensorId<<4)|trackerId 內含
+	// trackerId,洗牌後變成 server 沒見過的值 → 被當成新裝置重複註冊,舊的餓死變已逾時。
+	// 配對表滿了可用按鈕五連按(resetTrackers)清除。
+	uint8_t stableId = 0;
+	if (!Configuration::getInstance().getOrCreateTrackerId(mac, stableId)) {
+		Serial.println("[Emu] pairing table full, tracker rejected (5-press button to reset)");
+		return -1;
+	}
 	for (size_t i = 0; i < kMaxTrackers; i++) {
 		if (!m_peers[i].used) {
 			m_peers[i].used = true;
-			m_peers[i].trackerId = allocTrackerId();
+			m_peers[i].trackerId = stableId;
 			memcpy(m_peers[i].mac, mac, 6);
 			m_peers[i].ip = ip;
 			m_peers[i].port = port;
 			m_peers[i].lastHeartbeatMs = 0;
 			isNew = true;
 			Serial.printf("[Emu] new tracker id=%u mac=%02x:%02x:%02x:%02x:%02x:%02x ip=%s\n",
-				m_peers[i].trackerId, mac[0],mac[1],mac[2],mac[3],mac[4],mac[5],
+				stableId, mac[0],mac[1],mac[2],mac[3],mac[4],mac[5],
 				ip.toString().c_str());
 			return static_cast<int>(i);
 		}

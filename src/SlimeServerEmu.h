@@ -87,7 +87,6 @@ private:
 	int  findPeerByMac(const uint8_t mac[6]);
 	int  findPeerByIp(const IPAddress &ip);
 	int  findOrAddPeer(const uint8_t mac[6], const IPAddress &ip, uint16_t port, bool &isNew);
-	uint8_t allocTrackerId();
 	void sendHandshakeReply(const IPAddress &ip, uint16_t port);
 	void sendHeartbeat(Peer &p);
 
