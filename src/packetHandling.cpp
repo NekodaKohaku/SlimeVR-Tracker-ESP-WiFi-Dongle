@@ -22,10 +22,13 @@ bool PacketHandling::registerTracker(uint8_t trackerId, const uint8_t mac[6]) {
         }
     }
     if (idx < 0) return false;
-    trackers[idx].used = true;
+    // 先填完內容、最後才設 used=true:tick()(loop task,另一個 core)隨時在讀這個陣列。
+    // 若先設 used 再填 MAC,tick 可能搶在中間送出「MAC 只寫一半」的 register 封包;
+    // server 會用這個亂碼位址建立裝置,且該次 session 內裝置名稱不會再更新(沾黏)。
     trackers[idx].id = trackerId;
     memcpy(trackers[idx].mac, mac, 6);
     if (isNew) trackers[idx].sensorMask = 1;   // 新註冊:先只有主感測器,副追蹤器等資料進來再補
+    trackers[idx].used = true;                 // 最後設,確保 tick 看到 used 時內容已完整
     return isNew;
 }
 
@@ -97,8 +100,14 @@ void PacketHandling::setTrackerOnline(uint8_t trackerId, bool online) {
     int idx = findTracker(trackerId);
     if (idx < 0) return;
 
-    if (trackers[idx].online == online) return;   // 狀態沒變,不重複處理
-    trackers[idx].online = online;
+    // check-and-set 需加鎖:逾時判定(loop task)與資料復活(lwip task)可能同時呼叫,
+    // 不加鎖時兩邊都可能通過「狀態沒變」檢查 → 重複送 status 或遺失一次轉換。
+    // 注意 status 封包要在鎖外送(priorityPush 內部會取同一把 spinlock,不可重入)。
+    portENTER_CRITICAL(&m_mux);
+    bool changed = (trackers[idx].online != online);
+    if (changed) trackers[idx].online = online;
+    portEXIT_CRITICAL(&m_mux);
+    if (!changed) return;   // 狀態沒變,不重複處理
 
     // 對這顆 tracker 的每個感測器(主+副)都送狀態封包。
     // 離線時送 TIMED_OUT(5) 而非 DISCONNECTED(0):server 只會在 TIMED_OUT 狀態下

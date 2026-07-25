@@ -31,7 +31,9 @@ private:
     static constexpr size_t HID_REPORT_SIZE = HID_PACKET_SIZE * PACKETS_PER_REPORT; // 64
     static constexpr size_t MAX_TRACKERS = 16;
     static constexpr size_t FIFO_SIZE = 64;
-    static constexpr size_t PRIORITY_FIFO_SIZE = 16;   // status/register 等高優先封包
+    static constexpr size_t PRIORITY_FIFO_SIZE = 32;   // status 等高優先封包。
+    // 32 = 10 顆 tracker × 3 感測器餘裕:AP 層事件讓全部 tracker 同時斷線時,
+    // 每顆的每個感測器各送一個 status,16 格會滿而靜默丟棄部分 status。
 
     struct TrackerInfo {
         bool used = false;
