@@ -5,11 +5,18 @@
 
 namespace WifiDongleConfig {
 
+// ===== ランダム識別(シール印刷用) =====
+// true にすると、ビルド時に各 dongle 一意の SSID とランダムパスワードを自動生成し、
+// build log に表示します(シールに印刷して本体に貼るのがおすすめです)。
+// 生成された値は device_identity.txt に保存され、同じ dongle への再書き込みでは
+// 変わりません。次の「新しい」dongle を書き込む前に device_identity.txt を
+// 削除してください(新しい一組が生成されます)。
+// false の場合は下の apSsid / apPassword をそのまま使い、ファイルも生成しません。
+static constexpr bool generateUniqueIdentity = false;
+
 // ===== WiFi SoftAP 設定 =====
-// 註:print_wifi_config.py 的 GENERATE_PER_DEVICE_IDENTITY 開著時(預設),
-// 每台 dongle 會在「編譯時」拿到自動產生的唯一 SSID 與隨機密碼
-// (經 DONGLE_AP_SSID / DONGLE_AP_PASSWORD 注入,build log 會顯示,可印成貼紙)。
-// 下面兩個值只在沒啟用那個機制時才會用到。
+// 注: generateUniqueIdentity が true の場合、下の 2 つの値は使われません
+// (DONGLE_AP_SSID / DONGLE_AP_PASSWORD がビルド時に注入されます)。
 // Dongle が作成する WiFi AP の名前です。
 #ifdef DONGLE_AP_SSID
 static constexpr const char *apSsid = DONGLE_AP_SSID;
@@ -35,9 +42,10 @@ static constexpr uint8_t maxTrackers = 10;
 static constexpr bool apHidden = false;
 
 // ===== 複数 dongle 同時利用の設定 =====
-// 註:上面的「編譯時產生每台一組 SSID/密碼」機制(print_wifi_config.py)
-// 已經讓每台 dongle 天生唯一,用它的話下面三個 autoUnique* 都保持 false 即可
-// (autoUniqueUsbSerial 除外 —— USB 序號和 WiFi 無關,維持 true 沒有壞處)。
+// 注: 上記の「ビルド時に各 dongle 一組の SSID/パスワードを生成する」仕組み
+// (print_wifi_config.py)を使う場合、各台はもともと一意になるため、
+// autoUniqueSsidSuffix / autoUniquePassword は false のままで大丈夫です。
+// (autoUniqueUsbSerial は WiFi と無関係なので true のままを推奨します。)
 // dongle を複数台同時に使う場合、各台に「一意な USB シリアル」と「一意な SSID」が
 // 必要です。そうしないと server が同じ dongle と誤認して統合してしまい(HID デバイスの
 // 統合)、tracker も別の dongle につながってしまうことがあります。

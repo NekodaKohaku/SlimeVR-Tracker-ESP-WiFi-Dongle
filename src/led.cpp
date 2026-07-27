@@ -42,6 +42,7 @@ void LED::setState(bool on) {
 }
 
 static constexpr uint8_t kErrorCodeBits = 3;
+
 static_assert(static_cast<unsigned>(ErrorCodes::ERROR_CODE_COUNT) <= (1u << kErrorCodeBits),
               "kErrorCodeBits too small for the largest ErrorCodes value");
 
