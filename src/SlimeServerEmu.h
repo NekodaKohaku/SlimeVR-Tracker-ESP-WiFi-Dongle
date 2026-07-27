@@ -1,3 +1,5 @@
+
+
 #pragma once
 
 #include <Arduino.h>
@@ -6,7 +8,6 @@
 #include <functional>
 #include <cstdint>
 #include <cstring>
-#include <cmath>
 #include <algorithm>
 
 #include "error_codes.h"
@@ -57,8 +58,6 @@ private:
 	static constexpr uint8_t PKT_SRV_HEARTBEAT   = 1;
 	static constexpr uint8_t PKT_SRV_HANDSHAKE   = 3;
 
-	static constexpr size_t kMaxSensorsPerTracker = 16;
-
 	struct Peer {
 		bool      used = false;
 		uint8_t   trackerId = 0;
@@ -66,8 +65,7 @@ private:
 		IPAddress ip;
 		uint16_t  port = 0;
 		uint32_t  lastHeartbeatMs = 0;
-
-		int16_t   accelFixed[kMaxSensorsPerTracker][3] = {};
+		int16_t   accelFixed[3] = {0, 0, 0};
 		uint32_t  lastSeenMs = 0;
 		bool      connected = false;
 	};
@@ -77,11 +75,6 @@ private:
 	uint64_t m_packetNumber = 0;
 	uint8_t  m_maxConn = 12;
 
-	uint8_t  m_pickedChannel = 0;
-
-	uint8_t  m_rejectedMac[6] = {0};
-	bool     m_hasRejectedMac = false;
-
 	std::function<void(uint8_t, const uint8_t *)> m_onConnected;
 
 	void onPacket(AsyncUDPPacket &pkt);
@@ -90,7 +83,6 @@ private:
 	                    uint32_t &boardType, uint32_t &mcuType, uint32_t &imuType);
 	int  findPeerByMac(const uint8_t mac[6]);
 	int  findPeerByIp(const IPAddress &ip);
-	void releaseDuplicateIp(const IPAddress &ip, int keepIdx);
 	int  findOrAddPeer(const uint8_t mac[6], const IPAddress &ip, uint16_t port, bool &isNew);
 	void sendHandshakeReply(const IPAddress &ip, uint16_t port);
 	void sendHeartbeat(Peer &p);
@@ -114,16 +106,12 @@ private:
 	}
 	template <unsigned Q>
 	static int16_t toFixed(float number) {
-
-		if (!std::isfinite(number)) return 0;
-		float scaled = number * static_cast<float>(1u << Q);
-		scaled = std::clamp(scaled, -32768.0f, 32767.0f);
-		return static_cast<int16_t>(scaled);
+		int32_t v = static_cast<int32_t>(number * (1 << Q));
+		v = std::clamp(v, static_cast<int32_t>(-32768), static_cast<int32_t>(32767));
+		return static_cast<int16_t>(v);
 	}
 
 	static uint8_t encodeTemp(float tempC) {
-
-		if (!std::isfinite(tempC)) return 1;
 		float e = (tempC - 25.0f) * 2.0f + 128.5f;
 		if (e < 1.0f) e = 1.0f;
 		if (e > 255.0f) e = 255.0f;

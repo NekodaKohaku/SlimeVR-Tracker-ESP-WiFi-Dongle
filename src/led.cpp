@@ -41,27 +41,28 @@ void LED::setState(bool on) {
     currentLedState = on;
 }
 
-static constexpr uint8_t kErrorCodeBits = 3;
-
-static_assert(static_cast<unsigned>(ErrorCodes::ERROR_CODE_COUNT) <= (1u << kErrorCodeBits),
-              "kErrorCodeBits too small for the largest ErrorCodes value");
-
-void LED::blinkErrorOnce(uint8_t code) {
-    for (int i = kErrorCodeBits - 1; i >= 0; i--) {
-        setState(true);
-        delay(((code >> i) & 0b1) ? 500 : 100);
-        setState(false);
-        delay(200);
+void LED::displayError(ErrorCodes errorCode) {
+    uint8_t pattern = 0;
+    uint8_t errorBits = static_cast<uint8_t>(errorCode);
+    while (errorBits != 0) {
+        pattern = pattern << 1 | (errorBits & 0b1);
+        errorBits >>= 1;
     }
-    delay(1000 - 200);
-}
 
-void LED::displayErrorTimes(ErrorCodes errorCode, uint8_t repeats) {
-    uint8_t code = static_cast<uint8_t>(errorCode);
-    for (uint8_t i = 0; i < repeats; i++) {
-        blinkErrorOnce(code);
+    while (true) {
+        auto bitsLeft = pattern;
+
+        while (bitsLeft != 0) {
+            setState(true);
+            delay(bitsLeft & 0b1 ? 500 : 100);
+            setState(false);
+            delay(200);
+
+            bitsLeft >>= 1;
+        }
+
+        delay(1000 - 200);
     }
-    setState(false);
 }
 
 void LED::sendBlinks(uint8_t blinkCount, float onSeconds, float offSeconds) {

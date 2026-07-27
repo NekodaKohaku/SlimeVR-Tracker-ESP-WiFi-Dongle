@@ -100,4 +100,9 @@ static constexpr uint32_t officialHeartbeatIntervalMs = 2400;
 // heartbeat 数回分をカバーできる 6000ms に緩和します。
 static constexpr uint32_t officialTrackerTimeoutMs = 6000;
 
+// ===== カスタム WiFi tracker モード =====
+// 実験用の heartbeat です。通常は false のまま使用してください。
+static constexpr bool customExperimentHeartbeat = false;
+static constexpr uint32_t customExperimentHeartbeatIntervalMs = 1000;
+
 } // namespace WifiDongleConfig

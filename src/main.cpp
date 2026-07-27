@@ -1,3 +1,5 @@
+
+
 #include "HID.h"
 #include "WifiDongleConfig.h"
 #include "button.h"
@@ -5,12 +7,17 @@
 #include "error_codes.h"
 #include "led.h"
 #include "packetHandling.h"
-#include "SlimeServerEmu.h"
 #include "logging/Logger.h"
 
 #include <Arduino.h>
 #include <USB.h>
 #include <USBCDC.h>
+
+#ifdef USE_OFFICIAL_PROXY
+  #include "SlimeServerEmu.h"
+#else
+  #include "WifiCommunication.h"
+#endif
 
 HIDDevice hidDevice;
 Button &button = Button::getInstance();
@@ -20,8 +27,6 @@ SlimeVR::Logging::Logger logger("Main");
 static char g_usbSerial[24];
 static char g_apSsid[40];
 static char g_apPassword[64];
-
-static volatile bool g_newTrackerBlink = false;
 
 static void buildIdentifiers() {
 
@@ -48,20 +53,14 @@ static void buildIdentifiers() {
     }
 }
 
-SlimeServerEmu &comm = SlimeServerEmu::getInstance();
+#ifdef USE_OFFICIAL_PROXY
+  SlimeServerEmu &comm = SlimeServerEmu::getInstance();
+#else
+  WifiCommunication &comm = WifiCommunication::getInstance();
+#endif
 
-static ErrorCodes g_bootError = ErrorCodes::NO_ERROR;
-static uint32_t g_bootRetryAtMs = 0;
-static constexpr uint32_t kBootRetryIntervalMs = 10000;
-
-static ErrorCodes startComm() {
-    return comm.begin(
-        g_apSsid,
-        g_apPassword,
-        WifiDongleConfig::apChannel,
-        WifiDongleConfig::maxTrackers,
-        WifiDongleConfig::apHidden
-    );
+[[noreturn]] void fail(ErrorCodes errorCode) {
+    led.displayError(errorCode);
 }
 
 void setup() {
@@ -74,35 +73,34 @@ void setup() {
     }
     Serial.printf("[ID] USB serial: %s\n",
                   WifiDongleConfig::autoUniqueUsbSerial ? g_usbSerial : USB_SERIAL);
-
-    if (WifiDongleConfig::autoUniquePassword) {
-        Serial.printf("[ID] SoftAP SSID: %s  (password: %s)\n",
-                      g_apSsid, g_apPassword);
-    } else {
-        Serial.printf("[ID] SoftAP SSID: %s\n", g_apSsid);
-    }
+    Serial.printf("[ID] SoftAP SSID: %s  (password: %s)\n",
+                  g_apSsid, g_apPassword);
 
     Configuration::getInstance().setup();
     hidDevice.begin();
     USB.begin();
 
+    button.begin();
+
+#ifndef USE_OFFICIAL_PROXY
+    button.onLongPress([]() {
+        if (!comm.isInPairingMode()) {
+            Serial.println("Pairing mode enabled");
+            comm.enterPairingMode();
+            led.sendContinuousBlinks(0.1f, 0.5f);
+        } else {
+            Serial.println("Pairing mode disabled");
+            comm.exitPairingMode();
+            led.stopBlinking();
+        }
+    });
+#endif
+
     button.onMultiPress([](size_t pressCount) {
         if (pressCount == 5) {
             Serial.println("Trackers reset");
-
-            for (int i = 0; i < 5; i++) {
-                led.setState(true);
-                delay(120);
-                led.setState(false);
-                delay(120);
-            }
-
             Configuration::getInstance().resetTrackers();
-
-            Serial.println("Pairing table cleared, rebooting...");
-            Serial.flush();
-
-            ESP.restart();
+            led.sendBlinks(5, 0.2f, 0.1f);
             return;
         }
     });
@@ -110,60 +108,47 @@ void setup() {
     led.begin();
     led.setState(false);
 
+    ErrorCodes result = comm.begin(
+        g_apSsid,
+        g_apPassword,
+        WifiDongleConfig::apChannel,
+        WifiDongleConfig::maxTrackers,
+        WifiDongleConfig::apHidden
+    );
+    if (result != ErrorCodes::NO_ERROR) {
+        fail(result);
+    }
+
+#ifndef USE_OFFICIAL_PROXY
+    comm.onTrackerPaired([&]() {
+        Serial.println("New tracker paired");
+        led.sendBlinks(3, 0.1f);
+    });
+#endif
+
     comm.onTrackerConnected(
-        [](uint8_t trackerId, const uint8_t *trackerMacAddress) {
+        [&](uint8_t trackerId, const uint8_t *trackerMacAddress) {
             bool isNew = PacketHandling::getInstance().registerTracker(trackerId, trackerMacAddress);
             if (isNew) {
                 Serial.println("New tracker connected");
-
-                g_newTrackerBlink = true;
+                led.sendBlinks(2, 0.1f);
             }
         });
 
-    ErrorCodes result = startComm();
-    if (result != ErrorCodes::NO_ERROR) {
-        Serial.printf("[Boot] comm.begin() failed with error code %u\n",
-                      static_cast<unsigned>(result));
-        Serial.flush();
-
-        led.displayErrorTimes(result, 3);
-        g_bootError = result;
-        g_bootRetryAtMs = millis() + kBootRetryIntervalMs;
-
-        led.sendContinuousBlinks(0.1f, 0.9f);
-    } else {
-        Serial.println("Boot complete");
-    }
-
-    button.begin();
+#ifndef USE_OFFICIAL_PROXY
+    comm.onInfoReceived(
+        [&](const uint8_t *info) {
+            PacketHandling::getInstance().insertInfo(info);
+        });
+    comm.onPacketReceived(
+        [&](const uint8_t *packet) {
+            PacketHandling::getInstance().insert(packet);
+        });
+#endif
+    Serial.println("Boot complete");
 }
 
 void loop() {
-    if (g_bootError != ErrorCodes::NO_ERROR) {
-
-        button.update();
-        led.update();
-        if (static_cast<int32_t>(millis() - g_bootRetryAtMs) >= 0) {
-            g_bootRetryAtMs = millis() + kBootRetryIntervalMs;
-            ErrorCodes retry = startComm();
-            if (retry == ErrorCodes::NO_ERROR) {
-                g_bootError = ErrorCodes::NO_ERROR;
-                led.stopBlinking();
-                led.setState(false);
-                Serial.println("[Boot] comm.begin() succeeded on retry, boot complete");
-            } else {
-                Serial.printf("[Boot] retry failed with error code %u\n",
-                              static_cast<unsigned>(retry));
-            }
-        }
-        return;
-    }
-
-    if (g_newTrackerBlink) {
-        g_newTrackerBlink = false;
-        led.sendBlinks(2, 0.1f);
-    }
-
     button.update();
     led.update();
     comm.update();
