@@ -8,7 +8,7 @@
 #define USB_VID          0x1209
 #define USB_PID          0x7690
 #define USB_MANUFACTURER "SlimeVR"
-#define USB_PRODUCT      "SlimeVR ESPNow Dongle"
+#define USB_PRODUCT      "SlimeVR WiFi Dongle"
 #define USB_SERIAL       "SVRDGESP01B"
 
 // Default USB FirmwareMSC Settings
