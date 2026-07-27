@@ -1,6 +1,4 @@
-/*
-	Official-compatible UDP proxy for stock SlimeVR ESP trackers.
-*/
+
 
 #pragma once
 
@@ -49,7 +47,6 @@ private:
 	static constexpr uint8_t  kDtimPeriod       = WifiDongleConfig::dtimPeriod;
 	static constexpr uint32_t kTrackerTimeoutMs = WifiDongleConfig::officialTrackerTimeoutMs;
 
-	// 追蹤器送出
 	static constexpr uint8_t PKT_SEND_HANDSHAKE  = 3;
 	static constexpr uint8_t PKT_SEND_ACCEL      = 4;
 	static constexpr uint8_t PKT_SEND_BATTERY    = 12;
@@ -57,7 +54,7 @@ private:
 	static constexpr uint8_t PKT_SEND_ROTATION   = 17;
 	static constexpr uint8_t PKT_SEND_SIGNAL     = 19;
 	static constexpr uint8_t PKT_SEND_TEMP       = 20;
-	// 伺服器送出
+
 	static constexpr uint8_t PKT_SRV_HEARTBEAT   = 1;
 	static constexpr uint8_t PKT_SRV_HANDSHAKE   = 3;
 
@@ -68,9 +65,9 @@ private:
 		IPAddress ip;
 		uint16_t  port = 0;
 		uint32_t  lastHeartbeatMs = 0;
-		int16_t   accelFixed[3] = {0, 0, 0};   // 最新 accel,組 rotation 包時用
-		uint32_t  lastSeenMs = 0;              // 最後收到該顆任何封包的時間
-		bool      connected = false;           // 目前是否視為連線中
+		int16_t   accelFixed[3] = {0, 0, 0};
+		uint32_t  lastSeenMs = 0;
+		bool      connected = false;
 	};
 
 	Peer m_peers[kMaxTrackers];
@@ -90,7 +87,6 @@ private:
 	void sendHandshakeReply(const IPAddress &ip, uint16_t port);
 	void sendHeartbeat(Peer &p);
 
-	// 各封包解析(拿到就更新 PacketHandling 對應欄位)
 	void handleRotation(Peer &p, const uint8_t *data, size_t len);
 	void handleAccel(Peer &p, const uint8_t *data, size_t len);
 	void handleBattery(Peer &p, const uint8_t *data, size_t len);
@@ -114,7 +110,7 @@ private:
 		v = std::clamp(v, static_cast<int32_t>(-32768), static_cast<int32_t>(32767));
 		return static_cast<int16_t>(v);
 	}
-	// 溫度編碼(對齊你客製 sendInfo 的編碼:(t-25)*2 + 128.5,clamp 1..255)
+
 	static uint8_t encodeTemp(float tempC) {
 		float e = (tempC - 25.0f) * 2.0f + 128.5f;
 		if (e < 1.0f) e = 1.0f;

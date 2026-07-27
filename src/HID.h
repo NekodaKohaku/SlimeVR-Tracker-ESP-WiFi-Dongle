@@ -4,7 +4,6 @@
 #include <cstddef>
 #include <cstdint>
 
-// clang-format off
 static const uint8_t hid_report_desc[] = {
     0x05, 0x01,        // Usage Page (Generic Desktop Ctrls)
     0x09, 0x00,        // Usage (Undefined)
@@ -15,7 +14,6 @@ static const uint8_t hid_report_desc[] = {
     0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
     0xC0,              // End Collection
 };
-// clang-format on
 
 class HIDDevice : public USBHIDDevice {
 public:

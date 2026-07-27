@@ -22,13 +22,11 @@ bool PacketHandling::registerTracker(uint8_t trackerId, const uint8_t mac[6]) {
         }
     }
     if (idx < 0) return false;
-    // 先填完內容、最後才設 used=true:tick()(loop task,另一個 core)隨時在讀這個陣列。
-    // 若先設 used 再填 MAC,tick 可能搶在中間送出「MAC 只寫一半」的 register 封包;
-    // server 會用這個亂碼位址建立裝置,且該次 session 內裝置名稱不會再更新(沾黏)。
+
     trackers[idx].id = trackerId;
     memcpy(trackers[idx].mac, mac, 6);
-    if (isNew) trackers[idx].sensorMask = 1;   // 新註冊:先只有主感測器,副追蹤器等資料進來再補
-    trackers[idx].used = true;                 // 最後設,確保 tick 看到 used 時內容已完整
+    if (isNew) trackers[idx].sensorMask = 1;
+    trackers[idx].used = true;
     return isNew;
 }
 
@@ -40,7 +38,6 @@ void PacketHandling::updateRssiByMac(const uint8_t mac[6], int8_t rssi) {
         }
 }
 
-// ---- 官方相容 setter:拿到就更新對應欄位 ----
 void PacketHandling::setBattery(uint8_t trackerId, uint8_t pct, uint16_t mv) {
     int idx = findTracker(trackerId);
     if (idx < 0) return;
@@ -86,8 +83,7 @@ void PacketHandling::pushStatusHid(uint8_t hidId, uint8_t status) {
     p.data[0] = 3;
     p.data[1] = hidId;
     p.data[2] = status;
-    // status 封包也要帶 rssi(byte15),否則 server 會把 signalStrength 洗成 0。
-    // packets_received/lost、windows_hit/missed(byte4~7)目前沒有統計來源,先留 0。
+
     int idx = findTracker(static_cast<uint8_t>(hidId & 0x0F));
     if (idx >= 0) {
         int8_t r = trackers[idx].rssi;
@@ -100,19 +96,12 @@ void PacketHandling::setTrackerOnline(uint8_t trackerId, bool online) {
     int idx = findTracker(trackerId);
     if (idx < 0) return;
 
-    // check-and-set 需加鎖:逾時判定(loop task)與資料復活(lwip task)可能同時呼叫,
-    // 不加鎖時兩邊都可能通過「狀態沒變」檢查 → 重複送 status 或遺失一次轉換。
-    // 注意 status 封包要在鎖外送(priorityPush 內部會取同一把 spinlock,不可重入)。
     portENTER_CRITICAL(&m_mux);
     bool changed = (trackers[idx].online != online);
     if (changed) trackers[idx].online = online;
     portEXIT_CRITICAL(&m_mux);
-    if (!changed) return;   // 狀態沒變,不重複處理
+    if (!changed) return;
 
-    // 對這顆 tracker 的每個感測器(主+副)都送狀態封包。
-    // 離線時送 TIMED_OUT(5) 而非 DISCONNECTED(0):server 只會在 TIMED_OUT 狀態下
-    // 讓「進來的資料」自動把狀態救回 OK(HIDCommon.kt),DISCONNECTED 則要等明確的
-    // status=OK 才會恢復。用 TIMED_OUT 可避免「顯示離線、資料卻一直進來」卡住。
     for (uint8_t s = 0; s < MAX_SENSORS; s++) {
         if (!(trackers[idx].sensorMask & (1u << s))) continue;
         uint8_t hid = static_cast<uint8_t>((s << 4) | trackerId);
@@ -129,7 +118,7 @@ void PacketHandling::setTrackerOnline(uint8_t trackerId, bool online) {
 
 void PacketHandling::fifoPush(const Packet &p, uint8_t hidId) {
     portENTER_CRITICAL(&m_mux);
-    // 去重:同一感測器(hidId=(sensorId<<4)|trackerId)的資料封包(data[0]==1)已在佇列就原地更新
+
     if (!fifoEmpty()) {
         size_t idx = fifoTail;
         while (idx != fifoHead) {
@@ -168,7 +157,7 @@ void PacketHandling::priorityPush(const Packet &p) {
     portENTER_CRITICAL(&m_mux);
     if (priorityFull) {
         portEXIT_CRITICAL(&m_mux);
-        return;   // 滿了就丟(極少發生;16 格對 status 綽綽有餘)
+        return;
     }
     priorityFifo[priorityHead] = p;
     priorityHead = (priorityHead + 1) % PRIORITY_FIFO_SIZE;
@@ -191,21 +180,16 @@ bool PacketHandling::priorityPop(Packet &out) {
 
 void PacketHandling::insert(const uint8_t *payload) {
     uint8_t trackerId = payload[0] >> 4;
-    uint8_t sensorId  = payload[0] & 0x0F;   // 副追蹤器:主感測器=0,副感測器=1..
+    uint8_t sensorId  = payload[0] & 0x0F;
 
     int idx = findTracker(trackerId);
     if (idx < 0) return;
 
-    // 第一次看到這個 sensorId → 記錄下來,並立刻補送 register/device_info,
-    // 讓 server 把它註冊成一顆獨立的 tracker(否則資料會被 server 丟棄)。
     if (!(trackers[idx].sensorMask & (1u << sensorId))) {
         trackers[idx].sensorMask |= (1u << sensorId);
         lastRegSentMs = 0;
     }
 
-    // HID device id 同時編碼 trackerId 與 sensorId:
-    //   (sensorId<<4)|trackerId → 主感測器(s=0)= trackerId(與舊版相容),
-    //   副感測器則落在不同 id,不會再互相覆蓋。
     uint8_t hid = static_cast<uint8_t>((sensorId << 4) | trackerId);
 
     Packet p;
@@ -215,7 +199,7 @@ void PacketHandling::insert(const uint8_t *payload) {
     memcpy(&p.data[2], &payload[1], 8);
     memcpy(&p.data[10], &payload[9], 6);
 
-    fifoPush(p, hid);   // 以 hid 去重,主/副感測器各自獨立
+    fifoPush(p, hid);
 }
 
 void PacketHandling::insertInfo(const uint8_t *info) {
@@ -243,7 +227,6 @@ void PacketHandling::tick(HIDDevice &hidDevice) {
 
     uint32_t now = millis();
 
-    // === 第一部分:每 100ms 送一輪所有 tracker 的 register+device_info ===
     if (now - lastRegSentMs >= 100) {
         lastRegSentMs = now;
 
@@ -253,29 +236,18 @@ void PacketHandling::tick(HIDDevice &hidDevice) {
 
         for (size_t i = 0; i < MAX_TRACKERS; i++) {
             if (!trackers[i].used) continue;
-            if (!trackers[i].online) continue;   // 斷線的不再送 register/device_info
+            if (!trackers[i].online) continue;
             TrackerInfo &ti = trackers[i];
 
-            // 對此 tracker 的每個感測器(主 + 副追蹤器)各送一組 register + device_info
             for (uint8_t s = 0; s < MAX_SENSORS; s++) {
                 if (!(ti.sensorMask & (1u << s))) continue;
                 uint8_t hid = static_cast<uint8_t>((s << 4) | ti.id);
 
-                // register (255):MAC 反序送,讓 server 顯示的硬體 ID 與直連版一致(正序),
-                // 並讓 server 短名取到 MAC 唯一序號端(末三 byte)而非廠商前綴 → 不再撞名。
-                // 副感測器(s>0)把最低 byte 加上 s,讓它在 server 上顯示成不同短名。
                 uint8_t *r = &report[slot * HID_PACKET_SIZE];
                 r[0] = 255; r[1] = hid;
                 for (int b = 0; b < 6; b++) r[2 + b] = ti.mac[5 - b];
                 if (s > 0) {
-                    // 副感測器位址防撞:第一個 byte(r[7]=mac[0])整個換成合成值 0x02|(s<<4)。
-                    //  - 0x02 是 locally-administered bit,ESP 工廠 MAC 一定是 0
-                    //    → 副感測器位址不可能撞到任何真 MAC(主感測器)。
-                    //  - sensorId 放進高 nibble → 不同 sensorId 分屬不同位址區段,
-                    //    即使兩塊板子 MAC 連號、各帶多顆副感測器也不可能互撞。
-                    //    (只做 |0x02 的舊做法在「連號 MAC+兩顆副感測器」時 mac[5]+s 會撞)
-                    //  - r[2](=mac[5])再加 s,讓 server 短名與主感測器不同、好辨認。
-                    // 全部是真 MAC 的決定性函數,重開機後穩定 → 部位記憶照樣有效。
+
                     r[7] = static_cast<uint8_t>(0x02 | (s << 4));
                     r[2] = static_cast<uint8_t>(r[2] + s);
                 }
@@ -286,7 +258,6 @@ void PacketHandling::tick(HIDDevice &hidDevice) {
                     slot = 0;
                 }
 
-                // device_info (type 0):batt/temp/fw/rssi 為整顆 tracker 共用
                 uint8_t *d = &report[slot * HID_PACKET_SIZE];
                 d[0] = 0;
                 d[1] = hid;
@@ -295,7 +266,7 @@ void PacketHandling::tick(HIDDevice &hidDevice) {
                 d[4] = ti.temp;
                 d[5] = ti.brdId;
                 d[6] = ti.mcuId;
-                d[7] = 0;                            // resv
+                d[7] = 0;
                 d[8] = ti.imuId;
                 d[9] = ti.magId;
                 d[10] = ti.fwDate & 0xFF;
@@ -321,7 +292,6 @@ void PacketHandling::tick(HIDDevice &hidDevice) {
         }
     }
 
-    // === 第二部分:送高優先封包(status)+ 資料封包 ===
     static uint32_t lastDataSentMs = 0;
     if (now - lastDataSentMs < 5) {
         return;
@@ -333,7 +303,6 @@ void PacketHandling::tick(HIDDevice &hidDevice) {
         memset(report, 0, sizeof(report));
         int slot = 0;
 
-        // 先填高優先封包(斷線 status 等),確保它們永不被資料壅塞延遲/丟棄
         while (slot < (int)PACKETS_PER_REPORT) {
             Packet p;
             if (!priorityPop(p)) break;
@@ -341,15 +310,14 @@ void PacketHandling::tick(HIDDevice &hidDevice) {
             slot++;
         }
 
-        // 再用一般資料封包填滿剩餘 slot
         while (slot < (int)PACKETS_PER_REPORT) {
             Packet p;
-            if (!fifoPop(p)) break;   // fifoPop 內部有鎖;空了會回 false
+            if (!fifoPop(p)) break;
             memcpy(&report[slot * HID_PACKET_SIZE], p.data, HID_PACKET_SIZE);
             slot++;
         }
 
-        if (slot == 0) return;   // priority 和 data 都空了,結束
+        if (slot == 0) return;
         for (int s = slot; s < (int)PACKETS_PER_REPORT; s++) {
             report[s * HID_PACKET_SIZE] = 254;
         }

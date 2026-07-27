@@ -1,6 +1,4 @@
-/*
-	Official-compatible UDP proxy for stock SlimeVR ESP trackers.
-*/
+
 
 #include "SlimeServerEmu.h"
 #include "packetHandling.h"
@@ -82,19 +80,15 @@ uint8_t SlimeServerEmu::connectedCount() const {
 	return n;
 }
 
-// discovery handshake 佈局(tracker -> server):
-//   [0..2]0 [3]3 [4..11]packetNum
-//   body@12: board(BE u32) imu(4) mcu(BE u32) imuInfo*3(12) protocol(4)
-//   @40: fwVersion shortstring(1+N)   @41+N: MAC(6)
 bool SlimeServerEmu::parseHandshake(const uint8_t *data, size_t len, uint8_t outMac[6],
                                     uint32_t &boardType, uint32_t &mcuType, uint32_t &imuType) {
 	constexpr size_t kBodyOffset = 12;
 	constexpr size_t kFwLenOffset = 40;
 	if (len <= kFwLenOffset) return false;
 
-	boardType = readBeU32(&data[kBodyOffset]);       // @12
-	imuType   = readBeU32(&data[kBodyOffset + 4]);    // @16
-	mcuType   = readBeU32(&data[kBodyOffset + 8]);    // @20
+	boardType = readBeU32(&data[kBodyOffset]);
+	imuType   = readBeU32(&data[kBodyOffset + 4]);
+	mcuType   = readBeU32(&data[kBodyOffset + 8]);
 
 	uint8_t fwLen = data[kFwLenOffset];
 	size_t macOffset = kFwLenOffset + 1 + fwLen;
@@ -125,11 +119,7 @@ int SlimeServerEmu::findOrAddPeer(const uint8_t mac[6], const IPAddress &ip, uin
 		m_peers[idx].port = port;
 		return idx;
 	}
-	// trackerId 改用持久化配對表(LittleFS):同一顆 MAC 永遠拿到同一個 id,dongle 重開機不變。
-	// 若照連線順序分配,重開後 id 洗牌:主感測器的 hidId 都是 server 見過的 → 資料流進
-	// 「別顆的舊欄位」(部位互換,難察覺);副感測器 hidId=(sensorId<<4)|trackerId 內含
-	// trackerId,洗牌後變成 server 沒見過的值 → 被當成新裝置重複註冊,舊的餓死變已逾時。
-	// 配對表滿了可用按鈕五連按(resetTrackers)清除。
+
 	uint8_t stableId = 0;
 	if (!Configuration::getInstance().getOrCreateTrackerId(mac, stableId)) {
 		Serial.println("[Emu] pairing table full, tracker rejected (5-press button to reset)");
@@ -170,7 +160,6 @@ void SlimeServerEmu::sendHeartbeat(Peer &p) {
 	m_udp.writeTo(buf, sizeof(buf), p.ip, p.port);
 }
 
-// ---- Accel(4):body@12 = x,y,z (f32 BE), sensorId(1). len=25 ----
 void SlimeServerEmu::handleAccel(Peer &p, const uint8_t *data, size_t len) {
 	if (len < 25) return;
 	p.accelFixed[0] = toFixed<7>(readBeFloat(&data[12]));
@@ -178,7 +167,6 @@ void SlimeServerEmu::handleAccel(Peer &p, const uint8_t *data, size_t len) {
 	p.accelFixed[2] = toFixed<7>(readBeFloat(&data[20]));
 }
 
-// ---- RotationData(17):[12]sensorId [13]dataType [14..29]quat xyzw(f32 BE) [30]acc ----
 void SlimeServerEmu::handleRotation(Peer &p, const uint8_t *data, size_t len) {
 	if (len < 31) return;
 	uint8_t sensorId = data[12] & 0x0F;
@@ -201,36 +189,31 @@ void SlimeServerEmu::handleRotation(Peer &p, const uint8_t *data, size_t len) {
 	PacketHandling::getInstance().insert(payload);
 }
 
-// ---- Battery(12):body@12 = voltage(f32 BE), percentage(f32 BE). len=20 ----
 void SlimeServerEmu::handleBattery(Peer &p, const uint8_t *data, size_t len) {
 	if (len < 20) return;
-	float voltage = readBeFloat(&data[12]);     // volts
-	float pct     = readBeFloat(&data[16]);     // 0..1 或 0..100(見下方註)
-	// 官方 percentage 是 0..1;轉成 0..100
+	float voltage = readBeFloat(&data[12]);
+	float pct     = readBeFloat(&data[16]);
+
 	uint8_t pctU = static_cast<uint8_t>(std::clamp(pct <= 1.0f ? pct * 100.0f : pct, 0.0f, 100.0f));
 	uint16_t mv  = static_cast<uint16_t>(std::clamp(voltage, 0.0f, 6.5f) * 1000.0f);
 	PacketHandling::getInstance().setBattery(p.trackerId, pctU, mv);
 }
 
-// ---- Temperature(20):body@12 = sensorId(1), temp(f32 BE). len=17 ----
 void SlimeServerEmu::handleTemperature(Peer &p, const uint8_t *data, size_t len) {
 	if (len < 17) return;
 	float tempC = readBeFloat(&data[13]);
 	PacketHandling::getInstance().setTemp(p.trackerId, encodeTemp(tempC));
 }
 
-// ---- SignalStrength(19):body@12 = sensorId(1), strength(int8). len=14 ----
 void SlimeServerEmu::handleSignal(Peer &p, const uint8_t *data, size_t len) {
 	if (len < 14) return;
 	int8_t rssi = static_cast<int8_t>(data[13]);
 	PacketHandling::getInstance().setRssi(p.trackerId, rssi);
 }
 
-// ---- SensorInfo(15):body@12 起。sensorId(1) sensorStatus(1) sensorType(1) ...
-// 只取 sensorType 當 imuId(server 顯示 IMU 類型用);mag 先 0。 ----
 void SlimeServerEmu::handleSensorInfo(Peer &p, const uint8_t *data, size_t len) {
 	if (len < 15) return;
-	// [12]sensorId [13]sensorStatus [14]sensorType
+
 	uint8_t imuId = data[14];
 	PacketHandling::getInstance().setSensorInfo(p.trackerId, imuId, 0);
 }
@@ -272,8 +255,8 @@ void SlimeServerEmu::onPacket(AsyncUDPPacket &pkt) {
 		);
 		PacketHandling::getInstance().setSensorInfo(
 			m_peers[idx].trackerId,
-			static_cast<uint8_t>(imuType),   // IMU 類型(=15)
-			0                                 // mag 先 0
+			static_cast<uint8_t>(imuType),
+			0
 		);
 		return;
 	}
@@ -305,10 +288,6 @@ void SlimeServerEmu::update() {
 		Peer &p = m_peers[i];
 		if (!p.used) continue;
 
-		// 時間比較用 int32_t 有號解讀:onPacket(lwip task)可能在本函式取完 now 之後
-		// 才寫入 lastSeenMs/lastHeartbeatMs(值比 now 新)。若用 unsigned 減法會下溢成
-		// 巨大正數 → 剛收到封包的追蹤器被瞬間誤判逾時。有號解讀時「未來」為負數,不誤觸發。
-		// (感謝 mintocandy 回報此問題)
 		if (kEnableHeartbeat
 		    && static_cast<int32_t>(now - p.lastHeartbeatMs) >= static_cast<int32_t>(kHeartbeatIntervalMs)) {
 			p.lastHeartbeatMs = now;
