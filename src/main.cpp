@@ -31,26 +31,13 @@ static char g_apPassword[64];
 static void buildIdentifiers() {
 
     uint64_t mac = ESP.getEfuseMac();
-    uint8_t b2 = static_cast<uint8_t>((mac >> 16) & 0xFF);
     uint8_t b3 = static_cast<uint8_t>((mac >> 24) & 0xFF);
     uint8_t b4 = static_cast<uint8_t>((mac >> 32) & 0xFF);
     uint8_t b5 = static_cast<uint8_t>((mac >> 40) & 0xFF);
 
     snprintf(g_usbSerial, sizeof(g_usbSerial), "SVRDG-%02X%02X%02X", b3, b4, b5);
-
-    if (WifiDongleConfig::autoUniqueSsidSuffix) {
-        snprintf(g_apSsid, sizeof(g_apSsid), "%s-%02X%02X",
-                 WifiDongleConfig::apSsid, b4, b5);
-    } else {
-        snprintf(g_apSsid, sizeof(g_apSsid), "%s", WifiDongleConfig::apSsid);
-    }
-
-    if (WifiDongleConfig::autoUniquePassword) {
-        snprintf(g_apPassword, sizeof(g_apPassword), "%s%02X%02X%02X%02X",
-                 WifiDongleConfig::apPassword, b2, b3, b4, b5);
-    } else {
-        snprintf(g_apPassword, sizeof(g_apPassword), "%s", WifiDongleConfig::apPassword);
-    }
+    snprintf(g_apSsid, sizeof(g_apSsid), "%s", WifiDongleConfig::apSsid);
+    snprintf(g_apPassword, sizeof(g_apPassword), "%s", WifiDongleConfig::apPassword);
 }
 
 #ifdef USE_OFFICIAL_PROXY
