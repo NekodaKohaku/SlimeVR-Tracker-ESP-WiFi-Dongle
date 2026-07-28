@@ -24,6 +24,9 @@ ESP32-S3 Dongle を PC に接続すると、Dongle が独立した SoftAP ホッ
 
 ESP32-S2 でも理論上は動作する可能性がありますが、最大接続数と安定性は未確認です。
 
+> **ぽてとらシリーズを使用している場合:**
+> [ぽてとら向けカスタムファームウェア](https://github.com/MintoCandy/SlimeVR-Tracker-ESP-WiFi-Dongle-Potetora-Custom)を利用できます。
+
 ### ⚙️ デフォルト WiFi 設定
 
 | 設定項目 | デフォルト値 | 備考 |
@@ -97,6 +100,9 @@ This firmware has currently been fully tested only on the **ESP32-S3 Dongle**.
 
 ESP32-S2 may theoretically work, but the maximum connection count and stability are not yet confirmed.
 
+> **If you are using a ぽてとら-series device:**
+> You can use the [custom firmware for ぽてとら](https://github.com/MintoCandy/SlimeVR-Tracker-ESP-WiFi-Dongle-Potetora-Custom).
+
 ### ⚙️ Default WiFi Settings
 
 | Setting | Default Value | Note |
@@ -169,6 +175,9 @@ Main options:
 - ✅ **測試設備:** ESP32-S3-WROOM-1
 
 ESP32-S2 理論上可能可行，但最大連線數與穩定性尚未確認。
+
+> **如果你正在使用 ぽてとら 系列裝置：**
+> 可以使用[ぽてとら 專用自訂韌體](https://github.com/MintoCandy/SlimeVR-Tracker-ESP-WiFi-Dongle-Potetora-Custom)。
 
 ### ⚙️ 預設 WiFi 設定
 
