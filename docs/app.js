@@ -11,7 +11,7 @@ const LANGUAGE_STORAGE_KEY = "slimevr-dongle-language";
 const translations = {
   "zh-Hant": {
     pageDescription: "SlimeVR WiFi Dongle 的免安裝 Web Serial 控制台。", backToTop: "回到頂端", privacy: "本機 USB 連線，不上傳資料",
-    heroTitle: "不用安裝工具，<br><span>直接管理你的 Dongle。</span>", heroLead: "使用桌面版 Chrome 或 Edge，從瀏覽器查看狀態、設定 SoftAP、管理 Tracker，或進入進階終端。",
+    heroTitle: "NekoTora Dongle 管理工具", heroLead: "從瀏覽器管理 Dongle，查看裝置狀態、設定 SoftAP，以及管理 Tracker。",
     dongleStatus: "Dongle 狀態", disconnected: "尚未連接", connected: "已連接", connectDongle: "連接 Dongle", disconnect: "中斷連線", connectHelp: "瀏覽器會請你選擇 SlimeVR WiFi Dongle 的序列埠。", dashboard: "Dongle 控制面板",
     deviceInfo: "裝置資訊", refresh: "重新整理", refreshAll: "重新整理全部資訊", product: "產品", firmware: "韌體", usbSerial: "USB 序號", chip: "晶片",
     operatingStatus: "運作狀態", liveQuery: "即時查詢", uptime: "運作時間", softApChannel: "SoftAP 頻道", connectedDevices: "已連線裝置", chipTemperature: "晶片溫度", packetStats: "封包統計", ready: "就緒",
@@ -23,7 +23,7 @@ const translations = {
   },
   ja: {
     pageDescription: "SlimeVR WiFi Dongle 用のインストール不要な Web Serial コントロール画面です。", backToTop: "ページ上部へ戻る", privacy: "ローカル USB 接続・データ送信なし",
-    heroTitle: "ツールのインストール不要。<br><span>ブラウザから Dongle を管理。</span>", heroLead: "デスクトップ版 Chrome または Edge から、状態確認、SoftAP 設定、Tracker 管理、詳細ターミナルを利用できます。",
+    heroTitle: "NekoTora Dongle 管理ツール", heroLead: "ブラウザから Dongle の状態確認、SoftAP 設定、Tracker 管理を行えます。",
     dongleStatus: "Dongle の状態", disconnected: "未接続", connected: "接続済み", connectDongle: "Dongle に接続", disconnect: "切断", connectHelp: "ブラウザに表示される SlimeVR WiFi Dongle のシリアルポートを選択してください。", dashboard: "Dongle コントロールパネル",
     deviceInfo: "デバイス情報", refresh: "更新", refreshAll: "すべての情報を更新", product: "製品", firmware: "ファームウェア", usbSerial: "USB シリアル", chip: "チップ",
     operatingStatus: "動作状態", liveQuery: "リアルタイム取得", uptime: "稼働時間", softApChannel: "SoftAP チャンネル", connectedDevices: "接続中のデバイス", chipTemperature: "チップ温度", packetStats: "パケット統計", ready: "準備完了",
@@ -35,7 +35,7 @@ const translations = {
   },
   en: {
     pageDescription: "An install-free Web Serial control panel for the SlimeVR WiFi Dongle.", backToTop: "Back to top", privacy: "Local USB connection, no data uploads",
-    heroTitle: "No tools to install.<br><span>Manage your Dongle in the browser.</span>", heroLead: "Use desktop Chrome or Edge to view status, configure the SoftAP, manage Trackers, or open the advanced terminal.",
+    heroTitle: "NekoTora Dongle Manager", heroLead: "Manage your Dongle in the browser: view device status, configure the SoftAP, and manage Trackers.",
     dongleStatus: "Dongle status", disconnected: "Not connected", connected: "Connected", connectDongle: "Connect Dongle", disconnect: "Disconnect", connectHelp: "Your browser will ask you to select the SlimeVR WiFi Dongle serial port.", dashboard: "Dongle control panel",
     deviceInfo: "Device information", refresh: "Refresh", refreshAll: "Refresh all information", product: "Product", firmware: "Firmware", usbSerial: "USB serial", chip: "Chip",
     operatingStatus: "Operating status", liveQuery: "Live query", uptime: "Uptime", softApChannel: "SoftAP channel", connectedDevices: "Connected devices", chipTemperature: "Chip temperature", packetStats: "Packet statistics", ready: "Ready",
