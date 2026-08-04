@@ -1,5 +1,7 @@
 # SlimeVR ESP Tracker WiFi Dongle
 
+[![Open SlimeVR WiFi Dongle Manager](https://img.shields.io/badge/Open-SlimeVR%20WiFi%20Dongle%20Manager-blue?style=for-the-badge)](https://nekodakohaku.github.io/SlimeVR-Tracker-ESP-WiFi-Dongle/)
+
 [日本語](#日本語) | [English](#english) | [中文](#中文)
 
 ---
