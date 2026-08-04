@@ -1,30 +1,31 @@
 
 
-#include "SlimeServerEmu.h"
+#include "TrackerUdpReceiver.h"
 #include "packetHandling.h"
 #include "configuration.h"
 #include "esp_wifi.h"
 
-SlimeServerEmu SlimeServerEmu::instance;
+TrackerUdpReceiver TrackerUdpReceiver::instance;
 
 static const char kHandshakeMagic[] = "Hey OVR =D 5";
 static constexpr size_t kHandshakeMagicLen = 12;
 
-SlimeServerEmu &SlimeServerEmu::getInstance() { return instance; }
+TrackerUdpReceiver &TrackerUdpReceiver::getInstance() { return instance; }
 
-ErrorCodes SlimeServerEmu::begin(
+ErrorCodes TrackerUdpReceiver::begin(
 	const char *ssid, const char *password,
 	uint8_t channel, uint8_t maxConn, bool hidden
 ) {
-	m_maxConn = maxConn;
-
 	uint8_t useChannel = channel;
 	if (channel == 0) {
 		useChannel = pickBestChannel();
 	}
 
 	WiFi.mode(WIFI_AP);
-	WiFi.softAP(ssid, password, useChannel, hidden ? 1 : 0, maxConn);
+	if (!WiFi.softAP(ssid, password, useChannel, hidden ? 1 : 0, maxConn)) {
+		Serial.println("[Receiver] Could not start SoftAP");
+		return ErrorCodes::AP_START_FAILED;
+	}
 
 	wifi_config_t cfg;
 	esp_wifi_get_config(WIFI_IF_AP, &cfg);
@@ -33,19 +34,21 @@ ErrorCodes SlimeServerEmu::begin(
 	esp_wifi_set_config(WIFI_IF_AP, &cfg);
 	esp_wifi_set_ps(WIFI_PS_NONE);
 
-	if (m_udp.listen(kPort)) {
-		m_udp.onPacket([this](AsyncUDPPacket pkt) { onPacket(pkt); });
+	if (!m_udp.listen(kPort)) {
+		Serial.printf("[Receiver] Could not listen on UDP port %u\n", kPort);
+		return ErrorCodes::UDP_LISTEN_FAILED;
 	}
-	Serial.printf("[Emu] SlimeVR server emulator on ch %u, listening on :%u\n", useChannel, kPort);
+	m_udp.onPacket([this](AsyncUDPPacket pkt) { onPacket(pkt); });
+	Serial.printf("[Receiver] SoftAP on channel %u, listening on UDP %u\n", useChannel, kPort);
 	return ErrorCodes::NO_ERROR;
 }
 
-uint8_t SlimeServerEmu::pickBestChannel() {
+uint8_t TrackerUdpReceiver::pickBestChannel() {
 	WiFi.mode(WIFI_AP_STA);
 	int n = WiFi.scanNetworks(false, false);
 	if (n <= 0) {
 		WiFi.scanDelete();
-		Serial.println("[Emu] channel scan: no APs found, default ch 1");
+		Serial.println("[Receiver] channel scan: no APs found, default ch 1");
 		return 1;
 	}
 
@@ -69,18 +72,12 @@ uint8_t SlimeServerEmu::pickBestChannel() {
 	int best = 0;
 	for (int k = 1; k < 3; k++) if (score[k] < score[best]) best = k;
 
-	Serial.printf("[Emu] channel scan: ch1=%ld ch6=%ld ch11=%ld -> pick ch %u\n",
+	Serial.printf("[Receiver] channel scan: ch1=%ld ch6=%ld ch11=%ld -> pick ch %u\n",
 	              score[0], score[1], score[2], cands[best]);
 	return cands[best];
 }
 
-uint8_t SlimeServerEmu::connectedCount() const {
-	uint8_t n = 0;
-	for (size_t i = 0; i < kMaxTrackers; i++) if (m_peers[i].used) n++;
-	return n;
-}
-
-bool SlimeServerEmu::parseHandshake(const uint8_t *data, size_t len, uint8_t outMac[6],
+bool TrackerUdpReceiver::parseHandshake(const uint8_t *data, size_t len, uint8_t outMac[6],
                                     uint32_t &boardType, uint32_t &mcuType, uint32_t &imuType) {
 	constexpr size_t kBodyOffset = 12;
 	constexpr size_t kFwLenOffset = 40;
@@ -97,21 +94,21 @@ bool SlimeServerEmu::parseHandshake(const uint8_t *data, size_t len, uint8_t out
 	return true;
 }
 
-int SlimeServerEmu::findPeerByMac(const uint8_t mac[6]) {
+int TrackerUdpReceiver::findPeerByMac(const uint8_t mac[6]) {
 	for (size_t i = 0; i < kMaxTrackers; i++)
 		if (m_peers[i].used && memcmp(m_peers[i].mac, mac, 6) == 0)
 			return static_cast<int>(i);
 	return -1;
 }
 
-int SlimeServerEmu::findPeerByIp(const IPAddress &ip) {
+int TrackerUdpReceiver::findPeerByIp(const IPAddress &ip) {
 	for (size_t i = 0; i < kMaxTrackers; i++)
 		if (m_peers[i].used && m_peers[i].ip == ip)
 			return static_cast<int>(i);
 	return -1;
 }
 
-int SlimeServerEmu::findOrAddPeer(const uint8_t mac[6], const IPAddress &ip, uint16_t port, bool &isNew) {
+int TrackerUdpReceiver::findOrAddPeer(const uint8_t mac[6], const IPAddress &ip, uint16_t port, bool &isNew) {
 	isNew = false;
 	int idx = findPeerByMac(mac);
 	if (idx >= 0) {
@@ -122,7 +119,7 @@ int SlimeServerEmu::findOrAddPeer(const uint8_t mac[6], const IPAddress &ip, uin
 
 	uint8_t stableId = 0;
 	if (!Configuration::getInstance().getOrCreateTrackerId(mac, stableId)) {
-		Serial.println("[Emu] pairing table full, tracker rejected (5-press button to reset)");
+		Serial.println("[Receiver] tracker table full (press BOOT 5 times to reset)");
 		return -1;
 	}
 	for (size_t i = 0; i < kMaxTrackers; i++) {
@@ -134,7 +131,7 @@ int SlimeServerEmu::findOrAddPeer(const uint8_t mac[6], const IPAddress &ip, uin
 			m_peers[i].port = port;
 			m_peers[i].lastHeartbeatMs = 0;
 			isNew = true;
-			Serial.printf("[Emu] new tracker id=%u mac=%02x:%02x:%02x:%02x:%02x:%02x ip=%s\n",
+			Serial.printf("[Receiver] new tracker id=%u mac=%02x:%02x:%02x:%02x:%02x:%02x ip=%s\n",
 				stableId, mac[0],mac[1],mac[2],mac[3],mac[4],mac[5],
 				ip.toString().c_str());
 			return static_cast<int>(i);
@@ -143,14 +140,14 @@ int SlimeServerEmu::findOrAddPeer(const uint8_t mac[6], const IPAddress &ip, uin
 	return -1;
 }
 
-void SlimeServerEmu::sendHandshakeReply(const IPAddress &ip, uint16_t port) {
+void TrackerUdpReceiver::sendHandshakeReply(const IPAddress &ip, uint16_t port) {
 	uint8_t buf[1 + kHandshakeMagicLen];
 	buf[0] = PKT_SRV_HANDSHAKE;
 	memcpy(&buf[1], kHandshakeMagic, kHandshakeMagicLen);
 	m_udp.writeTo(buf, sizeof(buf), ip, port);
 }
 
-void SlimeServerEmu::sendHeartbeat(Peer &p) {
+void TrackerUdpReceiver::sendHeartbeat(Peer &p) {
 	uint8_t buf[12];
 	memset(buf, 0, sizeof(buf));
 	buf[3] = PKT_SRV_HEARTBEAT;
@@ -160,21 +157,31 @@ void SlimeServerEmu::sendHeartbeat(Peer &p) {
 	m_udp.writeTo(buf, sizeof(buf), p.ip, p.port);
 }
 
-void SlimeServerEmu::handleAccel(Peer &p, const uint8_t *data, size_t len) {
+void TrackerUdpReceiver::handleAccel(Peer &p, const uint8_t *data, size_t len) {
 	if (len < 25) return;
-	p.accelFixed[0] = toFixed<7>(readBeFloat(&data[12]));
-	p.accelFixed[1] = toFixed<7>(readBeFloat(&data[16]));
-	p.accelFixed[2] = toFixed<7>(readBeFloat(&data[20]));
+	float x = readBeFloat(&data[12]);
+	float y = readBeFloat(&data[16]);
+	float z = readBeFloat(&data[20]);
+	if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)) return;
+	p.accelFixed[0] = toFixed<7>(x);
+	p.accelFixed[1] = toFixed<7>(y);
+	p.accelFixed[2] = toFixed<7>(z);
 }
 
-void SlimeServerEmu::handleRotation(Peer &p, const uint8_t *data, size_t len) {
+void TrackerUdpReceiver::handleRotation(Peer &p, const uint8_t *data, size_t len) {
 	if (len < 31) return;
 	uint8_t sensorId = data[12] & 0x0F;
 
-	int16_t qxF = toFixed<15>(readBeFloat(&data[14]));
-	int16_t qyF = toFixed<15>(readBeFloat(&data[18]));
-	int16_t qzF = toFixed<15>(readBeFloat(&data[22]));
-	int16_t qwF = toFixed<15>(readBeFloat(&data[26]));
+	float qx = readBeFloat(&data[14]);
+	float qy = readBeFloat(&data[18]);
+	float qz = readBeFloat(&data[22]);
+	float qw = readBeFloat(&data[26]);
+	if (!std::isfinite(qx) || !std::isfinite(qy)
+	    || !std::isfinite(qz) || !std::isfinite(qw)) return;
+	int16_t qxF = toFixed<15>(qx);
+	int16_t qyF = toFixed<15>(qy);
+	int16_t qzF = toFixed<15>(qz);
+	int16_t qwF = toFixed<15>(qw);
 
 	uint8_t payload[15];
 	payload[0] = static_cast<uint8_t>((p.trackerId << 4) | sensorId);
@@ -189,36 +196,38 @@ void SlimeServerEmu::handleRotation(Peer &p, const uint8_t *data, size_t len) {
 	PacketHandling::getInstance().insert(payload);
 }
 
-void SlimeServerEmu::handleBattery(Peer &p, const uint8_t *data, size_t len) {
+void TrackerUdpReceiver::handleBattery(Peer &p, const uint8_t *data, size_t len) {
 	if (len < 20) return;
 	float voltage = readBeFloat(&data[12]);
 	float pct     = readBeFloat(&data[16]);
+	if (!std::isfinite(voltage) || !std::isfinite(pct)) return;
 
 	uint8_t pctU = static_cast<uint8_t>(std::clamp(pct <= 1.0f ? pct * 100.0f : pct, 0.0f, 100.0f));
 	uint16_t mv  = static_cast<uint16_t>(std::clamp(voltage, 0.0f, 6.5f) * 1000.0f);
 	PacketHandling::getInstance().setBattery(p.trackerId, pctU, mv);
 }
 
-void SlimeServerEmu::handleTemperature(Peer &p, const uint8_t *data, size_t len) {
+void TrackerUdpReceiver::handleTemperature(Peer &p, const uint8_t *data, size_t len) {
 	if (len < 17) return;
 	float tempC = readBeFloat(&data[13]);
+	if (!std::isfinite(tempC)) return;
 	PacketHandling::getInstance().setTemp(p.trackerId, encodeTemp(tempC));
 }
 
-void SlimeServerEmu::handleSignal(Peer &p, const uint8_t *data, size_t len) {
+void TrackerUdpReceiver::handleSignal(Peer &p, const uint8_t *data, size_t len) {
 	if (len < 14) return;
 	int8_t rssi = static_cast<int8_t>(data[13]);
 	PacketHandling::getInstance().setRssi(p.trackerId, rssi);
 }
 
-void SlimeServerEmu::handleSensorInfo(Peer &p, const uint8_t *data, size_t len) {
+void TrackerUdpReceiver::handleSensorInfo(Peer &p, const uint8_t *data, size_t len) {
 	if (len < 15) return;
 
 	uint8_t imuId = data[14];
 	PacketHandling::getInstance().setSensorInfo(p.trackerId, imuId, 0);
 }
 
-void SlimeServerEmu::onPacket(AsyncUDPPacket &pkt) {
+void TrackerUdpReceiver::onPacket(AsyncUDPPacket &pkt) {
 	const uint8_t *data = pkt.data();
 	size_t len = pkt.length();
 	if (len < 4) return;
@@ -229,12 +238,12 @@ void SlimeServerEmu::onPacket(AsyncUDPPacket &pkt) {
 		uint8_t mac[6];
 		uint32_t boardType = 0, mcuType = 0, imuType = 0;
 		if (!parseHandshake(data, len, mac, boardType, mcuType, imuType)) {
-			Serial.println("[Emu] handshake parse failed");
+			Serial.println("[Receiver] handshake parse failed");
 			return;
 		}
 		bool isNew = false;
 		int idx = findOrAddPeer(mac, pkt.remoteIP(), pkt.remotePort(), isNew);
-		if (idx < 0) { Serial.println("[Emu] tracker table full"); return; }
+		if (idx < 0) { Serial.println("[Receiver] tracker table full"); return; }
 
 		sendHandshakeReply(pkt.remoteIP(), pkt.remotePort());
 		sendHeartbeat(m_peers[idx]);
@@ -282,7 +291,7 @@ void SlimeServerEmu::onPacket(AsyncUDPPacket &pkt) {
 	}
 }
 
-void SlimeServerEmu::update() {
+void TrackerUdpReceiver::update() {
 	uint32_t now = millis();
 	for (size_t i = 0; i < kMaxTrackers; i++) {
 		Peer &p = m_peers[i];
@@ -297,7 +306,7 @@ void SlimeServerEmu::update() {
 		if (p.connected
 		    && static_cast<int32_t>(now - p.lastSeenMs) >= static_cast<int32_t>(kTrackerTimeoutMs)) {
 			p.connected = false;
-			Serial.printf("[Emu] tracker id=%u timed out -> disconnected\n", p.trackerId);
+			Serial.printf("[Receiver] tracker id=%u timed out -> disconnected\n", p.trackerId);
 			PacketHandling::getInstance().setTrackerOnline(p.trackerId, false);
 		}
 	}

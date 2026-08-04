@@ -8,6 +8,11 @@
 
 class PacketHandling {
 public:
+    struct Stats {
+        uint32_t droppedPackets;
+        uint32_t failedHidReports;
+    };
+
     static PacketHandling &getInstance();
 
     bool registerTracker(uint8_t trackerId, const uint8_t mac[6]);
@@ -23,6 +28,7 @@ public:
     void setFirmware(uint8_t trackerId, uint8_t brdId, uint8_t mcuId,
                      uint16_t fwDate, uint8_t fwMajor, uint8_t fwMinor, uint8_t fwPatch);
     void setTrackerOnline(uint8_t trackerId, bool online);
+    Stats getStats();
 
 private:
     static constexpr size_t HID_PACKET_SIZE = 16;
@@ -72,6 +78,8 @@ private:
 
     size_t regRotateIndex = 0;
     uint32_t lastRegSentMs = 0;
+    uint32_t droppedPackets = 0;
+    uint32_t failedHidReports = 0;
 
     portMUX_TYPE m_mux = portMUX_INITIALIZER_UNLOCKED;
 
@@ -87,4 +95,5 @@ private:
     bool priorityEmpty() const { return (priorityHead == priorityTail) && !priorityFull; }
     void priorityPush(const Packet &p);
     bool priorityPop(Packet &out);
+    void recordHidFailure(size_t lostPackets);
 };

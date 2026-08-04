@@ -1,32 +1,33 @@
 
 
 #include "HID.h"
+#include "CdcConsoleStream.h"
+#include "CommandConsole.h"
 #include "WifiDongleConfig.h"
 #include "button.h"
 #include "configuration.h"
 #include "error_codes.h"
 #include "led.h"
 #include "packetHandling.h"
-#include "logging/Logger.h"
+#include "TrackerUdpReceiver.h"
 
 #include <Arduino.h>
 #include <USB.h>
 #include <USBCDC.h>
 
-#ifdef USE_OFFICIAL_PROXY
-  #include "SlimeServerEmu.h"
-#else
-  #include "WifiCommunication.h"
-#endif
-
+USBCDC commandPort;
+CdcConsoleStream consoleStream(commandPort);
 HIDDevice hidDevice;
+CommandConsole commandConsole(consoleStream, hidDevice);
 Button &button = Button::getInstance();
 LED led;
-SlimeVR::Logging::Logger logger("Main");
 
 static char g_usbSerial[24];
 static char g_apSsid[40];
 static char g_apPassword[64];
+static uint8_t g_apChannel;
+static bool g_restartPending = false;
+static uint32_t g_restartAt = 0;
 
 static void buildIdentifiers() {
 
@@ -36,15 +37,13 @@ static void buildIdentifiers() {
     uint8_t b5 = static_cast<uint8_t>((mac >> 40) & 0xFF);
 
     snprintf(g_usbSerial, sizeof(g_usbSerial), "SVRDG-%02X%02X%02X", b3, b4, b5);
-    snprintf(g_apSsid, sizeof(g_apSsid), "%s", WifiDongleConfig::apSsid);
-    snprintf(g_apPassword, sizeof(g_apPassword), "%s", WifiDongleConfig::apPassword);
+    Configuration &configuration = Configuration::getInstance();
+    snprintf(g_apSsid, sizeof(g_apSsid), "%s", configuration.getWifiSsid());
+    snprintf(g_apPassword, sizeof(g_apPassword), "%s", configuration.getWifiPassword());
+    g_apChannel = configuration.getWifiChannel();
 }
 
-#ifdef USE_OFFICIAL_PROXY
-  SlimeServerEmu &comm = SlimeServerEmu::getInstance();
-#else
-  WifiCommunication &comm = WifiCommunication::getInstance();
-#endif
+TrackerUdpReceiver &receiver = TrackerUdpReceiver::getInstance();
 
 [[noreturn]] void fail(ErrorCodes errorCode) {
     led.displayError(errorCode);
@@ -54,6 +53,7 @@ void setup() {
     Serial.begin(115200);
     Serial.println("Starting up " USB_PRODUCT "...");
 
+    Configuration::getInstance().setup();
     buildIdentifiers();
     if (WifiDongleConfig::autoUniqueUsbSerial) {
         USB.serialNumber(g_usbSerial);
@@ -63,31 +63,21 @@ void setup() {
     Serial.printf("[ID] SoftAP SSID: %s  (password: %s)\n",
                   g_apSsid, g_apPassword);
 
-    Configuration::getInstance().setup();
+    commandPort.begin(115200);
+    commandPort.enableReboot(false);
     hidDevice.begin();
     USB.begin();
+    commandConsole.begin(g_usbSerial, g_apSsid, g_apPassword, g_apChannel);
 
     button.begin();
-
-#ifndef USE_OFFICIAL_PROXY
-    button.onLongPress([]() {
-        if (!comm.isInPairingMode()) {
-            Serial.println("Pairing mode enabled");
-            comm.enterPairingMode();
-            led.sendContinuousBlinks(0.1f, 0.5f);
-        } else {
-            Serial.println("Pairing mode disabled");
-            comm.exitPairingMode();
-            led.stopBlinking();
-        }
-    });
-#endif
 
     button.onMultiPress([](size_t pressCount) {
         if (pressCount == 5) {
             Serial.println("Trackers reset");
             Configuration::getInstance().resetTrackers();
             led.sendBlinks(5, 0.2f, 0.1f);
+            g_restartPending = true;
+            g_restartAt = millis() + 1600;
             return;
         }
     });
@@ -95,10 +85,10 @@ void setup() {
     led.begin();
     led.setState(false);
 
-    ErrorCodes result = comm.begin(
+    ErrorCodes result = receiver.begin(
         g_apSsid,
         g_apPassword,
-        WifiDongleConfig::apChannel,
+        g_apChannel,
         WifiDongleConfig::maxTrackers,
         WifiDongleConfig::apHidden
     );
@@ -106,14 +96,7 @@ void setup() {
         fail(result);
     }
 
-#ifndef USE_OFFICIAL_PROXY
-    comm.onTrackerPaired([&]() {
-        Serial.println("New tracker paired");
-        led.sendBlinks(3, 0.1f);
-    });
-#endif
-
-    comm.onTrackerConnected(
+    receiver.onTrackerConnected(
         [&](uint8_t trackerId, const uint8_t *trackerMacAddress) {
             bool isNew = PacketHandling::getInstance().registerTracker(trackerId, trackerMacAddress);
             if (isNew) {
@@ -122,22 +105,18 @@ void setup() {
             }
         });
 
-#ifndef USE_OFFICIAL_PROXY
-    comm.onInfoReceived(
-        [&](const uint8_t *info) {
-            PacketHandling::getInstance().insertInfo(info);
-        });
-    comm.onPacketReceived(
-        [&](const uint8_t *packet) {
-            PacketHandling::getInstance().insert(packet);
-        });
-#endif
     Serial.println("Boot complete");
 }
 
 void loop() {
     button.update();
     led.update();
-    comm.update();
+    receiver.update();
     PacketHandling::getInstance().tick(hidDevice);
+    commandConsole.update();
+    consoleStream.update();
+    if (g_restartPending
+        && static_cast<int32_t>(millis() - g_restartAt) >= 0) {
+        ESP.restart();
+    }
 }

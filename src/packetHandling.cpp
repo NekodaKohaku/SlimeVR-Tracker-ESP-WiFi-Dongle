@@ -131,6 +131,7 @@ void PacketHandling::fifoPush(const Packet &p, uint8_t hidId) {
         }
     }
     if (fifoFull) {
+        droppedPackets++;
         portEXIT_CRITICAL(&m_mux);
         return;
     }
@@ -156,6 +157,7 @@ bool PacketHandling::fifoPop(Packet &out) {
 void PacketHandling::priorityPush(const Packet &p) {
     portENTER_CRITICAL(&m_mux);
     if (priorityFull) {
+        droppedPackets++;
         portEXIT_CRITICAL(&m_mux);
         return;
     }
@@ -176,6 +178,20 @@ bool PacketHandling::priorityPop(Packet &out) {
     priorityFull = false;
     portEXIT_CRITICAL(&m_mux);
     return true;
+}
+
+PacketHandling::Stats PacketHandling::getStats() {
+    portENTER_CRITICAL(&m_mux);
+    Stats result{droppedPackets, failedHidReports};
+    portEXIT_CRITICAL(&m_mux);
+    return result;
+}
+
+void PacketHandling::recordHidFailure(size_t lostPackets) {
+    portENTER_CRITICAL(&m_mux);
+    failedHidReports++;
+    droppedPackets += lostPackets;
+    portEXIT_CRITICAL(&m_mux);
 }
 
 void PacketHandling::insert(const uint8_t *payload) {
@@ -253,7 +269,9 @@ void PacketHandling::tick(HIDDevice &hidDevice) {
                 }
                 slot++;
                 if (slot == (int)PACKETS_PER_REPORT) {
-                    hidDevice.send(report, HID_REPORT_SIZE);
+                    if (!hidDevice.send(report, HID_REPORT_SIZE)) {
+                        recordHidFailure(0);
+                    }
                     memset(report, 0, sizeof(report));
                     slot = 0;
                 }
@@ -277,7 +295,9 @@ void PacketHandling::tick(HIDDevice &hidDevice) {
                 d[15] = static_cast<uint8_t>(ti.rssi < 0 ? -ti.rssi : ti.rssi);
                 slot++;
                 if (slot == (int)PACKETS_PER_REPORT) {
-                    hidDevice.send(report, HID_REPORT_SIZE);
+                    if (!hidDevice.send(report, HID_REPORT_SIZE)) {
+                        recordHidFailure(0);
+                    }
                     memset(report, 0, sizeof(report));
                     slot = 0;
                 }
@@ -288,7 +308,9 @@ void PacketHandling::tick(HIDDevice &hidDevice) {
             for (int s = slot; s < (int)PACKETS_PER_REPORT; s++) {
                 report[s * HID_PACKET_SIZE] = 254;
             }
-            hidDevice.send(report, HID_REPORT_SIZE);
+            if (!hidDevice.send(report, HID_REPORT_SIZE)) {
+                recordHidFailure(0);
+            }
         }
     }
 
@@ -323,6 +345,7 @@ void PacketHandling::tick(HIDDevice &hidDevice) {
         }
 
         if (!hidDevice.send(report, HID_REPORT_SIZE)) {
+            recordHidFailure(static_cast<size_t>(slot));
             return;
         }
     }

@@ -9,13 +9,14 @@
 #include <cstdint>
 #include <cstring>
 #include <algorithm>
+#include <cmath>
 
 #include "error_codes.h"
 #include "WifiDongleConfig.h"
 
-class SlimeServerEmu {
+class TrackerUdpReceiver {
 public:
-	static SlimeServerEmu &getInstance();
+	static TrackerUdpReceiver &getInstance();
 
 	ErrorCodes begin(
 		const char *ssid,
@@ -31,11 +32,9 @@ public:
 		m_onConnected = std::move(cb);
 	}
 
-	uint8_t connectedCount() const;
-
 private:
-	SlimeServerEmu() = default;
-	static SlimeServerEmu instance;
+	TrackerUdpReceiver() = default;
+	static TrackerUdpReceiver instance;
 
 	static constexpr uint16_t kPort = WifiDongleConfig::udpPort;
 	static constexpr size_t   kMaxTrackers = WifiDongleConfig::maxTrackers;
@@ -73,8 +72,6 @@ private:
 	Peer m_peers[kMaxTrackers];
 	AsyncUDP m_udp;
 	uint64_t m_packetNumber = 0;
-	uint8_t  m_maxConn = 12;
-
 	std::function<void(uint8_t, const uint8_t *)> m_onConnected;
 
 	void onPacket(AsyncUDPPacket &pkt);
@@ -106,12 +103,14 @@ private:
 	}
 	template <unsigned Q>
 	static int16_t toFixed(float number) {
+		if (!std::isfinite(number)) return 0;
 		int32_t v = static_cast<int32_t>(number * (1 << Q));
 		v = std::clamp(v, static_cast<int32_t>(-32768), static_cast<int32_t>(32767));
 		return static_cast<int16_t>(v);
 	}
 
 	static uint8_t encodeTemp(float tempC) {
+		if (!std::isfinite(tempC)) return 0;
 		float e = (tempC - 25.0f) * 2.0f + 128.5f;
 		if (e < 1.0f) e = 1.0f;
 		if (e > 255.0f) e = 255.0f;
