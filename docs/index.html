@@ -60,7 +60,6 @@
             <p class="section-kicker">DEVICE</p>
             <h2 data-i18n="deviceInfo">裝置資訊</h2>
           </div>
-          <button class="icon-button" id="refresh-button" type="button" disabled aria-label="重新整理全部資訊" data-i18n="refresh" data-i18n-aria="refreshAll">重新整理</button>
         </div>
         <div class="metric-grid">
           <div class="metric"><span data-i18n="product">產品</span><strong id="device-product">—</strong></div>
@@ -76,7 +75,7 @@
             <p class="section-kicker">LIVE STATUS</p>
             <h2 data-i18n="operatingStatus">運作狀態</h2>
           </div>
-          <span class="live-badge" data-i18n="liveQuery">即時查詢</span>
+          <button class="icon-button" id="refresh-button" type="button" disabled aria-label="更新運作狀態" data-i18n="refreshStatus" data-i18n-aria="refreshStatus">更新狀態</button>
         </div>
         <dl class="status-list">
           <div><dt data-i18n="uptime">運作時間</dt><dd id="status-uptime">—</dd></div>
@@ -129,22 +128,15 @@
         </form>
       </article>
 
-      <article class="panel actions-panel">
+      <article class="panel tracker-panel">
         <div class="panel-heading">
           <div>
-            <p class="section-kicker">QUICK ACTIONS</p>
-            <h2 data-i18n="quickActions">快速操作</h2>
+            <p class="section-kicker">TRACKERS</p>
+            <h2 data-i18n="storedTrackers">已儲存的 Tracker</h2>
           </div>
-        </div>
-        <div class="action-grid">
-          <button class="action-button" type="button" data-command="info" disabled><strong>Info</strong><span data-i18n="infoDescription">裝置與版本資料</span></button>
-          <button class="action-button" type="button" data-command="status" disabled><strong>Status</strong><span data-i18n="statusDescription">目前運作狀態</span></button>
-          <button class="action-button" type="button" data-command="meow" disabled><strong>Meow</strong><span data-i18n="meowDescription">喵。</span></button>
-          <button class="action-button" type="button" data-command="help" disabled><strong>Help</strong><span data-i18n="helpDescription">顯示所有指令</span></button>
         </div>
         <div class="tracker-box">
           <div>
-            <h3 data-i18n="storedTrackers">已儲存的 Tracker</h3>
             <pre id="tracker-list" data-i18n="trackerConnectPrompt">連接後即可讀取</pre>
           </div>
           <div class="tracker-actions">
@@ -156,33 +148,40 @@
     </section>
 
     <section class="panel advanced-panel">
-      <details>
-        <summary>
-          <span><small>ADVANCED</small><strong data-i18n="advancedTitle">進階終端與系統操作</strong></span>
-          <span class="summary-hint" data-i18n="expand">展開</span>
-        </summary>
-        <div class="advanced-content">
-          <div class="terminal-wrap">
-            <div class="terminal-toolbar">
-              <span><i></i><i></i><i></i> Serial Terminal</span>
-              <button id="terminal-clear" type="button" data-i18n="clearScreen">清除畫面</button>
-            </div>
-            <pre class="terminal" id="terminal-output" aria-live="polite" data-i18n="terminalWaiting">等待連接 Dongle…</pre>
-            <form class="terminal-input" id="terminal-form">
-              <span aria-hidden="true">›</span>
-              <input id="terminal-command" type="text" autocomplete="off" spellcheck="false" placeholder="輸入指令，例如 status" data-i18n-placeholder="commandPlaceholder" disabled aria-label="序列指令" data-i18n-aria="serialCommand">
-              <button type="submit" disabled id="terminal-send" data-i18n="send">送出</button>
-            </form>
+      <div class="panel-heading control-heading">
+        <div>
+          <p class="section-kicker">TERMINAL &amp; SYSTEM</p>
+          <h2 data-i18n="advancedTitle">終端與系統操作</h2>
+        </div>
+      </div>
+      <div class="advanced-content">
+        <div class="terminal-wrap">
+          <div class="terminal-toolbar">
+            <span><i></i><i></i><i></i> Serial Terminal</span>
+            <button id="terminal-clear" type="button" data-i18n="clearScreen">清除畫面</button>
           </div>
-          <div class="system-actions">
-            <h3 data-i18n="systemActions">系統操作</h3>
-            <p data-i18n="systemHelp">重新啟動會套用已儲存的 WiFi 設定。Bootloader 會讓 Dongle 進入 ESP32 ROM Download Mode。</p>
+          <pre class="terminal" id="terminal-output" aria-live="polite" data-i18n="terminalWaiting">等待連接 Dongle…</pre>
+          <form class="terminal-input" id="terminal-form">
+            <span aria-hidden="true">›</span>
+            <input id="terminal-command" type="text" autocomplete="off" spellcheck="false" placeholder="輸入指令，例如 status" data-i18n-placeholder="commandPlaceholder" disabled aria-label="序列指令" data-i18n-aria="serialCommand">
+            <button type="submit" disabled id="terminal-send" data-i18n="send">送出</button>
+          </form>
+        </div>
+        <div class="system-actions">
+          <h3 data-i18n="systemActions">系統操作</h3>
+          <div class="action-grid system-command-grid">
+            <button class="action-button" type="button" data-command="info" disabled><strong>Info</strong><span data-i18n="infoDescription">裝置與版本資料</span></button>
+            <button class="action-button" type="button" data-command="status" disabled><strong>Status</strong><span data-i18n="statusDescription">目前運作狀態</span></button>
+            <button class="action-button" type="button" data-command="meow" disabled><strong>Meow</strong><span data-i18n="meowDescription">喵。</span></button>
+            <button class="action-button" type="button" data-command="help" disabled><strong>Help</strong><span data-i18n="helpDescription">顯示所有指令</span></button>
+          </div>
+          <div class="system-button-stack">
             <button class="button button-quiet" id="reboot-button" type="button" disabled data-i18n="rebootDongle">重新啟動 Dongle</button>
             <button class="button button-danger" id="bootloader-button" type="button" disabled data-i18n="enterBootloader">進入 Bootloader</button>
             <button class="text-danger" id="wifi-reset" type="button" disabled data-i18n="restoreWifi">恢復預設 WiFi 設定</button>
           </div>
         </div>
-      </details>
+      </div>
     </section>
 
     <section class="help-strip">
