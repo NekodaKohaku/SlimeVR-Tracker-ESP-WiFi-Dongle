@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07120f">
+  <meta name="description" content="SlimeVR WiFi Dongle 的免安裝 Web Serial 控制台。">
+  <title>SlimeVR WiFi Dongle Control</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="回到頂端">
+      <span class="brand-mark" aria-hidden="true">N</span>
+      <span>
+        <strong>NekoTora</strong>
+        <small>SlimeVR WiFi Dongle</small>
+      </span>
+    </a>
+    <div class="privacy-pill"><span aria-hidden="true">●</span> 本機 USB 連線，不上傳資料</div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">WEB SERIAL CONTROL</p>
+        <h1>不用安裝工具，<br><span>直接管理你的 Dongle。</span></h1>
+        <p class="hero-lead">使用桌面版 Chrome 或 Edge，從瀏覽器查看狀態、設定 SoftAP、管理 Tracker，或進入進階終端。</p>
+        <div class="hero-notes">
+          <span>ESP32-S3</span><span>USB CDC</span><span>115200 baud</span>
+        </div>
+      </div>
+
+      <aside class="connect-card" aria-labelledby="connection-title">
+        <div class="connection-state">
+          <span class="status-dot" id="status-dot" aria-hidden="true"></span>
+          <div>
+            <p id="connection-title">Dongle 狀態</p>
+            <strong id="connection-label">尚未連接</strong>
+          </div>
+        </div>
+        <button class="button button-primary" id="connect-button" type="button">連接 Dongle</button>
+        <button class="button button-quiet" id="disconnect-button" type="button" hidden>中斷連線</button>
+        <p class="connect-help" id="connect-help">瀏覽器會請你選擇 SlimeVR WiFi Dongle 的序列埠。</p>
+        <div class="browser-warning" id="browser-warning" hidden></div>
+      </aside>
+    </section>
+
+    <section class="dashboard" aria-label="Dongle 控制面板">
+      <article class="panel device-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-kicker">DEVICE</p>
+            <h2>裝置資訊</h2>
+          </div>
+          <button class="icon-button" id="refresh-button" type="button" disabled aria-label="重新整理全部資訊">重新整理</button>
+        </div>
+        <div class="metric-grid">
+          <div class="metric"><span>產品</span><strong id="device-product">—</strong></div>
+          <div class="metric"><span>韌體</span><strong id="device-firmware">—</strong></div>
+          <div class="metric"><span>USB 序號</span><strong id="device-serial">—</strong></div>
+          <div class="metric"><span>晶片</span><strong id="device-chip">—</strong></div>
+        </div>
+      </article>
+
+      <article class="panel status-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-kicker">LIVE STATUS</p>
+            <h2>運作狀態</h2>
+          </div>
+          <span class="live-badge">即時查詢</span>
+        </div>
+        <dl class="status-list">
+          <div><dt>運作時間</dt><dd id="status-uptime">—</dd></div>
+          <div><dt>HID</dt><dd id="status-hid">—</dd></div>
+          <div><dt>SoftAP 頻道</dt><dd id="status-channel">—</dd></div>
+          <div><dt>已連線裝置</dt><dd id="status-stations">—</dd></div>
+          <div><dt>晶片溫度</dt><dd id="status-temperature">—</dd></div>
+          <div><dt>封包統計</dt><dd id="status-packets">—</dd></div>
+        </dl>
+      </article>
+
+      <article class="panel wifi-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-kicker">SOFTAP</p>
+            <h2>WiFi 設定</h2>
+          </div>
+          <span class="restart-badge" id="restart-badge" hidden>等待重新啟動</span>
+        </div>
+        <form id="wifi-form" novalidate>
+          <label>
+            <span>SSID</span>
+            <input id="wifi-ssid" name="ssid" type="text" autocomplete="off" placeholder="SlimeDongle-5598C0" disabled>
+            <small>1–32 bytes</small>
+          </label>
+          <label>
+            <span>密碼</span>
+            <div class="password-field">
+              <input id="wifi-password" name="password" type="password" autocomplete="new-password" placeholder="至少 8 個字元" disabled>
+              <button id="password-toggle" type="button" disabled>顯示</button>
+            </div>
+            <small>8–63 bytes，儲存後需重新啟動</small>
+          </label>
+          <label>
+            <span>頻道</span>
+            <select id="wifi-channel" name="channel" disabled>
+              <option value="auto">自動選擇 1 / 6 / 11</option>
+              <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+              <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+              <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+              <option value="10">10</option><option value="11">11</option><option value="12">12</option>
+              <option value="13">13</option>
+            </select>
+          </label>
+          <p class="form-error" id="wifi-error" role="alert"></p>
+          <div class="form-actions">
+            <button class="button button-primary" type="submit" disabled id="wifi-save">儲存 WiFi 設定</button>
+            <button class="button button-quiet" type="button" disabled id="wifi-read">重新讀取</button>
+          </div>
+        </form>
+      </article>
+
+      <article class="panel actions-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-kicker">QUICK ACTIONS</p>
+            <h2>快速操作</h2>
+          </div>
+        </div>
+        <div class="action-grid">
+          <button class="action-button" type="button" data-command="info" disabled><strong>Info</strong><span>裝置與版本資料</span></button>
+          <button class="action-button" type="button" data-command="status" disabled><strong>Status</strong><span>目前運作狀態</span></button>
+          <button class="action-button" type="button" data-command="meow" disabled><strong>Meow</strong><span>喵。</span></button>
+          <button class="action-button" type="button" data-command="help" disabled><strong>Help</strong><span>顯示所有指令</span></button>
+        </div>
+        <div class="tracker-box">
+          <div>
+            <h3>已儲存的 Tracker</h3>
+            <pre id="tracker-list">連接後即可讀取</pre>
+          </div>
+          <div class="tracker-actions">
+            <button class="button button-quiet" id="tracker-read" type="button" disabled>重新讀取</button>
+            <button class="button button-danger" id="tracker-clear" type="button" disabled>清除 Tracker</button>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel advanced-panel">
+      <details>
+        <summary>
+          <span><small>ADVANCED</small><strong>進階終端與系統操作</strong></span>
+          <span class="summary-hint">展開</span>
+        </summary>
+        <div class="advanced-content">
+          <div class="terminal-wrap">
+            <div class="terminal-toolbar">
+              <span><i></i><i></i><i></i> Serial Terminal</span>
+              <button id="terminal-clear" type="button">清除畫面</button>
+            </div>
+            <pre class="terminal" id="terminal-output" aria-live="polite">等待連接 Dongle…</pre>
+            <form class="terminal-input" id="terminal-form">
+              <span aria-hidden="true">›</span>
+              <input id="terminal-command" type="text" autocomplete="off" spellcheck="false" placeholder="輸入指令，例如 status" disabled aria-label="序列指令">
+              <button type="submit" disabled id="terminal-send">送出</button>
+            </form>
+          </div>
+          <div class="system-actions">
+            <h3>系統操作</h3>
+            <p>重新啟動會套用已儲存的 WiFi 設定。Bootloader 會讓 Dongle 進入 ESP32 ROM Download Mode。</p>
+            <button class="button button-quiet" id="reboot-button" type="button" disabled>重新啟動 Dongle</button>
+            <button class="button button-danger" id="bootloader-button" type="button" disabled>進入 Bootloader</button>
+            <button class="text-danger" id="wifi-reset" type="button" disabled>恢復預設 WiFi 設定</button>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <section class="help-strip">
+      <div><strong>連不上？</strong><span>請先關閉 nRF Connect、PuTTY 或其他占用序列埠的程式。</span></div>
+      <div><strong>資料安全</strong><span>此頁面不需要登入，也不會將密碼傳送到網路。</span></div>
+      <div><strong>瀏覽器</strong><span>請使用桌面版 Chrome 或 Edge，並透過 HTTPS 開啟。</span></div>
+    </section>
+  </main>
+
+  <footer>
+    <span>SlimeVR WiFi Dongle Control</span>
+    <span>Made for NekoTora firmware</span>
+  </footer>
+
+  <dialog id="confirm-dialog">
+    <form method="dialog">
+      <p class="section-kicker">PLEASE CONFIRM</p>
+      <h2 id="dialog-title">確認操作</h2>
+      <p id="dialog-message"></p>
+      <div class="dialog-actions">
+        <button class="button button-quiet" value="cancel">取消</button>
+        <button class="button button-danger" id="dialog-confirm" value="confirm">確認</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="./app.js" defer></script>
+</body>
+</html>
