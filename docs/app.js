@@ -11,9 +11,9 @@ const LANGUAGE_STORAGE_KEY = "slimevr-dongle-language";
 const translations = {
   "zh-Hant": {
     pageDescription: "SlimeVR WiFi Dongle 的免安裝 Web Serial 控制台。", backToTop: "回到頂端", privacy: "本機 USB 連線，不上傳資料",
-    heroTitle: "NekoTora Dongle 管理工具", heroLead: "從瀏覽器管理 Dongle，查看裝置狀態、設定 SoftAP，以及管理 Tracker。",
+    heroTitle: '<span class="hero-title-accent">SlimeVR ESP</span><br><span class="hero-title-accent">WiFi Dongle</span><br><span class="hero-title-neutral">管理工具</span>', heroLead: "從瀏覽器管理 Dongle，查看裝置狀態、設定 SoftAP，以及管理 Tracker。",
     dongleStatus: "Dongle 狀態", disconnected: "尚未連接", connected: "已連接", connectDongle: "連接 Dongle", disconnect: "中斷連線", connectHelp: "瀏覽器會請你選擇 SlimeVR WiFi Dongle 的序列埠。", dashboard: "Dongle 控制面板",
-    deviceInfo: "裝置資訊", refreshStatus: "更新狀態", statusUpdated: "運作狀態已更新", product: "產品", firmware: "韌體", usbSerial: "USB 序號", chip: "晶片",
+    deviceInfo: "裝置資訊", refreshStatus: "更新狀態", statusUpdated: "運作狀態已更新", infoUpdated: "裝置資訊已更新", meowComplete: "喵！", helpShown: "指令列表已顯示於終端", product: "產品", firmware: "韌體", usbSerial: "USB 序號", chip: "晶片",
     operatingStatus: "運作狀態", uptime: "運作時間", softApChannel: "SoftAP 頻道", connectedDevices: "已連線裝置", chipTemperature: "晶片溫度", packetStats: "封包統計", ready: "就緒",
     wifiSettings: "WiFi 設定", restartPending: "等待重新啟動", password: "密碼", passwordPlaceholder: "至少 8 個字元", showPassword: "顯示", hidePassword: "隱藏", passwordHelp: "8–63 bytes，儲存後需重新啟動", channel: "頻道", autoChannel: "自動選擇 1 / 6 / 11", saveWifi: "儲存 WiFi 設定", readAgain: "重新讀取",
     infoDescription: "裝置與版本資料", statusDescription: "目前運作狀態", meowDescription: "喵。", helpDescription: "顯示所有指令", storedTrackers: "已儲存的 Tracker", trackerConnectPrompt: "連接後即可讀取", noStoredTrackers: "沒有已儲存的 Tracker。", clearTracker: "清除 Tracker",
@@ -23,9 +23,9 @@ const translations = {
   },
   ja: {
     pageDescription: "SlimeVR WiFi Dongle 用のインストール不要な Web Serial コントロール画面です。", backToTop: "ページ上部へ戻る", privacy: "ローカル USB 接続・データ送信なし",
-    heroTitle: "NekoTora Dongle 管理ツール", heroLead: "ブラウザから Dongle の状態確認、SoftAP 設定、Tracker 管理を行えます。",
+    heroTitle: '<span class="hero-title-accent">SlimeVR ESP</span><br><span class="hero-title-accent">WiFi Dongle</span><br><span class="hero-title-neutral">管理ツール</span>', heroLead: "ブラウザから Dongle の状態確認、SoftAP 設定、Tracker 管理を行えます。",
     dongleStatus: "Dongle の状態", disconnected: "未接続", connected: "接続済み", connectDongle: "Dongle に接続", disconnect: "切断", connectHelp: "ブラウザに表示される SlimeVR WiFi Dongle のシリアルポートを選択してください。", dashboard: "Dongle コントロールパネル",
-    deviceInfo: "デバイス情報", refreshStatus: "状態を更新", statusUpdated: "動作状態を更新しました", product: "製品", firmware: "ファームウェア", usbSerial: "USB シリアル", chip: "チップ",
+    deviceInfo: "デバイス情報", refreshStatus: "状態を更新", statusUpdated: "動作状態を更新しました", infoUpdated: "デバイス情報を更新しました", meowComplete: "にゃー！", helpShown: "コマンド一覧をターミナルに表示しました", product: "製品", firmware: "ファームウェア", usbSerial: "USB シリアル", chip: "チップ",
     operatingStatus: "動作状態", uptime: "稼働時間", softApChannel: "SoftAP チャンネル", connectedDevices: "接続中のデバイス", chipTemperature: "チップ温度", packetStats: "パケット統計", ready: "準備完了",
     wifiSettings: "WiFi 設定", restartPending: "再起動待ち", password: "パスワード", passwordPlaceholder: "8 文字以上", showPassword: "表示", hidePassword: "非表示", passwordHelp: "8～63 bytes・保存後に再起動が必要", channel: "チャンネル", autoChannel: "1 / 6 / 11 から自動選択", saveWifi: "WiFi 設定を保存", readAgain: "再読み込み",
     infoDescription: "デバイスとバージョン情報", statusDescription: "現在の動作状態", meowDescription: "にゃー。", helpDescription: "すべてのコマンドを表示", storedTrackers: "保存済み Tracker", trackerConnectPrompt: "接続後に読み込めます", noStoredTrackers: "保存済み Tracker はありません。", clearTracker: "Tracker を消去",
@@ -35,9 +35,9 @@ const translations = {
   },
   en: {
     pageDescription: "An install-free Web Serial control panel for the SlimeVR WiFi Dongle.", backToTop: "Back to top", privacy: "Local USB connection, no data uploads",
-    heroTitle: "NekoTora Dongle Manager", heroLead: "Manage your Dongle in the browser: view device status, configure the SoftAP, and manage Trackers.",
+    heroTitle: '<span class="hero-title-accent">SlimeVR ESP</span><br><span class="hero-title-accent">WiFi Dongle</span><br><span class="hero-title-neutral">Manager</span>', heroLead: "Manage your Dongle in the browser: view device status, configure the SoftAP, and manage Trackers.",
     dongleStatus: "Dongle status", disconnected: "Not connected", connected: "Connected", connectDongle: "Connect Dongle", disconnect: "Disconnect", connectHelp: "Your browser will ask you to select the SlimeVR WiFi Dongle serial port.", dashboard: "Dongle control panel",
-    deviceInfo: "Device information", refreshStatus: "Update status", statusUpdated: "Operating status updated", product: "Product", firmware: "Firmware", usbSerial: "USB serial", chip: "Chip",
+    deviceInfo: "Device information", refreshStatus: "Update status", statusUpdated: "Operating status updated", infoUpdated: "Device information updated", meowComplete: "Meow!", helpShown: "Command list shown in the terminal", product: "Product", firmware: "Firmware", usbSerial: "USB serial", chip: "Chip",
     operatingStatus: "Operating status", uptime: "Uptime", softApChannel: "SoftAP channel", connectedDevices: "Connected devices", chipTemperature: "Chip temperature", packetStats: "Packet statistics", ready: "Ready",
     wifiSettings: "WiFi settings", restartPending: "Restart pending", password: "Password", passwordPlaceholder: "At least 8 characters", showPassword: "Show", hidePassword: "Hide", passwordHelp: "8–63 bytes; restart after saving", channel: "Channel", autoChannel: "Automatically select 1 / 6 / 11", saveWifi: "Save WiFi settings", readAgain: "Read again",
     infoDescription: "Device and version details", statusDescription: "Current operating status", meowDescription: "Meow.", helpDescription: "Show all commands", storedTrackers: "Stored Trackers", trackerConnectPrompt: "Connect to read", noStoredTrackers: "No stored Trackers.", clearTracker: "Clear Trackers",
@@ -359,7 +359,13 @@ async function refreshWifi() {
 
 async function refreshTrackers() {
   const response = await sendCommand("trackers list");
-  ui.trackerList.textContent = response.replace(/^Stored trackers:\s*/i, "").trim() || t("noStoredTrackers");
+  const trackers = response
+    .replace(/^Stored trackers:\s*/i, "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("\n");
+  ui.trackerList.textContent = trackers || t("noStoredTrackers");
   return response;
 }
 
@@ -462,7 +468,13 @@ $$('[data-command]').forEach((button) => {
       const response = await sendCommand(button.dataset.command);
       if (button.dataset.command === "info") updateInfo(response);
       if (button.dataset.command === "status") updateStatus(response);
-      showToast(response.split(/\r?\n/)[0] || t("commandComplete"));
+      const toastKey = {
+        info: "infoUpdated",
+        status: "statusUpdated",
+        meow: "meowComplete",
+        help: "helpShown",
+      }[button.dataset.command] || "commandComplete";
+      showToast(t(toastKey));
     } catch (error) {
       showToast(error.message, true);
     }

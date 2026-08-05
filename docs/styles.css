@@ -51,6 +51,8 @@ button:disabled { cursor: not-allowed; opacity: 0.42; }
 .hero { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(310px, 0.7fr); gap: 56px; align-items: center; padding: 72px 0 82px; }
 .eyebrow, .section-kicker { margin: 0 0 14px; color: var(--lime); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.19em; }
 .hero h1 { margin: 0; max-width: 760px; font-size: clamp(2.8rem, 6vw, 5.7rem); line-height: 0.98; letter-spacing: -0.055em; }
+.hero-title-accent { color: var(--lime); }
+.hero-title-neutral { color: var(--text); }
 .hero-lead { max-width: 660px; margin: 28px 0 24px; color: var(--muted); font-size: clamp(1rem, 1.7vw, 1.15rem); line-height: 1.75; }
 
 .connect-card, .panel { border: 1px solid var(--line); background: var(--panel); box-shadow: var(--shadow); backdrop-filter: blur(18px); }
