@@ -181,7 +181,7 @@ function rejectPending(error) {
 }
 
 function receiveText(text) {
-  appendTerminal(text);
+  if (!state.pending || state.pending.logToTerminal) appendTerminal(text);
   if (!state.pending) return;
   state.pending.text += text;
   clearTimeout(state.pending.idleTimer);
@@ -261,13 +261,14 @@ async function closePort(showMessage = true) {
   }
 }
 
-async function sendCommandNow(command) {
+async function sendCommandNow(command, logToTerminal = true) {
   if (!state.writer || !state.port) throw new Error(t("dongleNotConnected"));
   if (state.pending) throw new Error(t("previousPending"));
-  appendTerminal(`\n> ${command}\n`);
+  if (logToTerminal) appendTerminal(`\n> ${command}\n`);
   const response = new Promise((resolve, reject) => {
     state.pending = {
       text: "",
+      logToTerminal,
       resolve,
       reject,
       idleTimer: 0,
@@ -285,8 +286,8 @@ async function sendCommandNow(command) {
   return response;
 }
 
-function sendCommand(command) {
-  const operation = state.commandQueue.then(() => sendCommandNow(command));
+function sendCommand(command, logToTerminal = true) {
+  const operation = state.commandQueue.then(() => sendCommandNow(command, logToTerminal));
   state.commandQueue = operation.catch(() => {});
   return operation;
 }
@@ -339,26 +340,26 @@ function updateWifi(text) {
   ui.restartBadge.hidden = wifi["reboot required"] !== "yes";
 }
 
-async function refreshInfo() {
-  const response = await sendCommand("info");
+async function refreshInfo(logToTerminal = false) {
+  const response = await sendCommand("info", logToTerminal);
   updateInfo(response);
   return response;
 }
 
-async function refreshStatus() {
-  const response = await sendCommand("status");
+async function refreshStatus(logToTerminal = false) {
+  const response = await sendCommand("status", logToTerminal);
   updateStatus(response);
   return response;
 }
 
-async function refreshWifi() {
-  const response = await sendCommand("wifi show");
+async function refreshWifi(logToTerminal = false) {
+  const response = await sendCommand("wifi show", logToTerminal);
   updateWifi(response);
   return response;
 }
 
-async function refreshTrackers() {
-  const response = await sendCommand("trackers list");
+async function refreshTrackers(logToTerminal = false) {
+  const response = await sendCommand("trackers list", logToTerminal);
   const trackers = response
     .replace(/^Stored trackers:\s*/i, "")
     .split(/\r?\n/)
@@ -413,7 +414,7 @@ async function saveWifi(event) {
       `wifi set channel ${channel}`,
     ];
     for (const command of commands) {
-      const response = await sendCommand(command);
+      const response = await sendCommand(command, false);
       if (!/^Saved\./m.test(response)) throw new Error(response || t("noReply"));
     }
     ui.restartBadge.hidden = false;
@@ -507,7 +508,7 @@ $("#tracker-clear").addEventListener("click", () => guardedAction(t("trackerClea
 $("#wifi-reset").addEventListener("click", async () => {
   if (!(await confirmAction(t("wifiResetTitle"), t("wifiResetMessage"), t("restoreDefault")))) return;
   try {
-    const response = await sendCommand("wifi reset");
+    const response = await sendCommand("wifi reset", false);
     if (!response.startsWith("Default WiFi")) throw new Error(response);
     await refreshWifi();
     ui.restartBadge.hidden = false;
