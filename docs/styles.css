@@ -120,6 +120,11 @@ input:focus, select:focus { border-color: rgba(147, 247, 181, 0.55); box-shadow:
 .tracker-box pre { margin: 0; white-space: pre-wrap; color: var(--muted); font: 0.72rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .tracker-actions { display: flex; gap: 7px; flex-shrink: 0; }
 .tracker-actions .button { min-height: 36px; padding: 0 11px; font-size: 0.7rem; }
+.tracker-capacity { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.tracker-capacity div { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255, 255, 255, 0.025); }
+.tracker-capacity span { color: var(--muted); font-size: 0.72rem; }
+.tracker-capacity strong { font: 750 0.78rem ui-monospace, SFMono-Regular, Menlo, monospace; }
+.tracker-capacity strong.is-full { color: #ffd077; }
 
 .advanced-panel { margin-top: 18px; overflow: hidden; }
 .control-heading { margin-bottom: 18px; }
@@ -177,6 +182,7 @@ dialog p:not(.section-kicker) { margin: 0; color: var(--muted); line-height: 1.6
   .hero h1 { font-size: clamp(2.5rem, 13vw, 4rem); }
   .panel, .connect-card { padding: 20px; border-radius: 18px; }
   .metric-grid, .action-grid { grid-template-columns: 1fr; }
+  .tracker-capacity { grid-template-columns: 1fr; }
   .tracker-box, .form-actions, footer { align-items: stretch; flex-direction: column; }
   .tracker-actions { flex-wrap: wrap; }
   .advanced-content { grid-template-columns: 1fr; }

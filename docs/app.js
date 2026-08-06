@@ -4,6 +4,7 @@ const USB_FILTERS = [{ usbVendorId: 0x1209, usbProductId: 0x7690 }];
 const BAUD_RATE = 115200;
 const RESPONSE_IDLE_MS = 180;
 const RESPONSE_TIMEOUT_MS = 2200;
+const MAX_TRACKERS = 10;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const LANGUAGE_STORAGE_KEY = "slimevr-dongle-language";
@@ -16,7 +17,7 @@ const translations = {
     deviceInfo: "裝置資訊", refreshStatus: "更新狀態", statusUpdated: "運作狀態已更新", infoUpdated: "裝置資訊已更新", meowComplete: "喵！", helpShown: "指令列表已顯示於終端", product: "產品", firmware: "韌體", usbSerial: "USB 序號", chip: "晶片",
     operatingStatus: "運作狀態", uptime: "運作時間", softApChannel: "SoftAP 頻道", connectedDevices: "已連線裝置", chipTemperature: "晶片溫度", packetStats: "封包統計", ready: "就緒",
     wifiSettings: "WiFi 設定", restartPending: "等待重新啟動", password: "密碼", passwordPlaceholder: "至少 8 個字元", showPassword: "顯示", hidePassword: "隱藏", passwordHelp: "8–63 bytes，儲存後需重新啟動", channel: "頻道", autoChannel: "自動選擇 1 / 6 / 11", saveWifi: "儲存 WiFi 設定", readAgain: "重新讀取",
-    infoDescription: "裝置與版本資料", statusDescription: "目前運作狀態", meowDescription: "喵。", helpDescription: "顯示所有指令", storedTrackers: "已儲存的 Tracker", trackerConnectPrompt: "連接後即可讀取", noStoredTrackers: "沒有已儲存的 Tracker。", clearTracker: "清除 Tracker",
+    infoDescription: "裝置與版本資料", statusDescription: "目前運作狀態", meowDescription: "喵。", helpDescription: "顯示所有指令", storedTrackers: "已儲存的 Tracker", trackerConnectPrompt: "連接後即可讀取", noStoredTrackers: "沒有已儲存的 Tracker。", trackerDisplay: "Tracker {number}（ID {id}）  {mac}", clearTracker: "清除 Tracker", connectedCapacity: "目前連線", storedCapacity: "已儲存",
     advancedTitle: "終端與系統操作", clearScreen: "清除畫面", terminalWaiting: "等待連接 Dongle…", commandPlaceholder: "輸入指令，例如 status", serialCommand: "序列指令", send: "送出", systemActions: "系統操作", rebootDongle: "重新啟動 Dongle", enterBootloader: "進入 Bootloader", restoreWifi: "恢復預設 WiFi 設定",
     cantConnect: "連不上？", cantConnectHelp: "請先關閉 nRF Connect、PuTTY 或其他占用序列埠的程式。", dataSafety: "資料安全", dataSafetyHelp: "此頁面不需要登入，也不會將密碼傳送到網路。", browser: "瀏覽器", browserHelp: "請使用桌面版 Chrome 或 Edge，並透過 HTTPS 開啟。", pleaseConfirm: "請確認", confirmAction: "確認操作", cancel: "取消", confirm: "確認",
     terminalConnected: "[已連接] SlimeVR WiFi Dongle\n", connectionInterrupted: "序列連線中斷：{error}", incompatibleDevice: "選取的裝置不是相容的 SlimeVR WiFi Dongle", connectedToast: "Dongle 已連接", portBusy: "無法開啟序列埠，請關閉其他序列工具後再試。", connectionFailed: "連線失敗：{error}", disconnectedToast: "已中斷 Dongle 連線", dongleNotConnected: "Dongle 尚未連接", previousPending: "上一個指令仍在處理", serialClosed: "序列埠已關閉", packetValue: "遺失 {dropped} / HID {failed}", readFailed: "讀取失敗：{error}", invalidLineBreak: "內容不能包含換行或 NUL", invalidQuotes: "內容不能同時以引號開頭或結尾並包含兩種引號", ssidInvalid: "SSID 必須是 1–32 bytes。", passwordInvalid: "密碼必須是 8–63 bytes。", noReply: "Dongle 沒有回覆", wifiSaved: "WiFi 設定已儲存，重新啟動後生效", saveFailed: "儲存失敗：{error}", commandComplete: "指令完成", commandSent: "指令已送出，Dongle 正在重新連線", rebooting: "Dongle 正在重新啟動", bootTitle: "進入 Bootloader？", bootMessage: "Dongle 將中斷目前的 HID 與序列連線，並以 ESP32 ROM Download Mode 重新出現。", trackerClearTitle: "清除所有 Tracker？", trackerClearMessage: "所有已儲存的 Tracker 對應會被刪除，Dongle 接著會重新啟動。", clearAndReboot: "清除並重啟", wifiResetTitle: "恢復預設 WiFi？", wifiResetMessage: "已儲存的 SSID、密碼與頻道會被清除；需要重新啟動才會套用。", restoreDefault: "恢復預設", wifiRestored: "已恢復預設 WiFi，重新啟動後生效", operationFailed: "操作失敗：{error}", unsupportedBrowser: "此瀏覽器不支援 Web Serial。請改用桌面版 Chrome 或 Edge。", secureContextRequired: "Web Serial 需要 HTTPS 安全連線。請從 GitHub Pages 網址開啟此頁。"
@@ -28,7 +29,7 @@ const translations = {
     deviceInfo: "デバイス情報", refreshStatus: "状態を更新", statusUpdated: "動作状態を更新しました", infoUpdated: "デバイス情報を更新しました", meowComplete: "にゃー！", helpShown: "コマンド一覧をターミナルに表示しました", product: "製品", firmware: "ファームウェア", usbSerial: "USB シリアル", chip: "チップ",
     operatingStatus: "動作状態", uptime: "稼働時間", softApChannel: "SoftAP チャンネル", connectedDevices: "接続中のデバイス", chipTemperature: "チップ温度", packetStats: "パケット統計", ready: "準備完了",
     wifiSettings: "WiFi 設定", restartPending: "再起動待ち", password: "パスワード", passwordPlaceholder: "8 文字以上", showPassword: "表示", hidePassword: "非表示", passwordHelp: "8～63 bytes・保存後に再起動が必要", channel: "チャンネル", autoChannel: "1 / 6 / 11 から自動選択", saveWifi: "WiFi 設定を保存", readAgain: "再読み込み",
-    infoDescription: "デバイスとバージョン情報", statusDescription: "現在の動作状態", meowDescription: "にゃー。", helpDescription: "すべてのコマンドを表示", storedTrackers: "保存済み Tracker", trackerConnectPrompt: "接続後に読み込めます", noStoredTrackers: "保存済み Tracker はありません。", clearTracker: "Tracker を消去",
+    infoDescription: "デバイスとバージョン情報", statusDescription: "現在の動作状態", meowDescription: "にゃー。", helpDescription: "すべてのコマンドを表示", storedTrackers: "保存済み Tracker", trackerConnectPrompt: "接続後に読み込めます", noStoredTrackers: "保存済み Tracker はありません。", trackerDisplay: "Tracker {number}（ID {id}）  {mac}", clearTracker: "Tracker を消去", connectedCapacity: "現在の接続数", storedCapacity: "保存済み",
     advancedTitle: "ターミナルとシステム操作", clearScreen: "画面を消去", terminalWaiting: "Dongle の接続を待っています…", commandPlaceholder: "コマンドを入力（例：status）", serialCommand: "シリアルコマンド", send: "送信", systemActions: "システム操作", rebootDongle: "Dongle を再起動", enterBootloader: "Bootloader に入る", restoreWifi: "デフォルト WiFi 設定に戻す",
     cantConnect: "接続できない場合", cantConnectHelp: "nRF Connect、PuTTY など、シリアルポートを使用しているアプリを閉じてください。", dataSafety: "データ保護", dataSafetyHelp: "ログインは不要で、パスワードがネットワークへ送信されることもありません。", browser: "ブラウザ", browserHelp: "デスクトップ版 Chrome または Edge から HTTPS で開いてください。", pleaseConfirm: "確認してください", confirmAction: "操作の確認", cancel: "キャンセル", confirm: "確認",
     terminalConnected: "[接続済み] SlimeVR WiFi Dongle\n", connectionInterrupted: "シリアル接続が切断されました：{error}", incompatibleDevice: "選択したデバイスは対応する SlimeVR WiFi Dongle ではありません", connectedToast: "Dongle に接続しました", portBusy: "シリアルポートを開けません。他のシリアルツールを閉じてから再試行してください。", connectionFailed: "接続に失敗しました：{error}", disconnectedToast: "Dongle との接続を切断しました", dongleNotConnected: "Dongle が接続されていません", previousPending: "前のコマンドを処理中です", serialClosed: "シリアルポートが閉じられました", packetValue: "破棄 {dropped} / HID {failed}", readFailed: "読み込みに失敗しました：{error}", invalidLineBreak: "改行または NUL は使用できません", invalidQuotes: "両方の引用符を含み、引用符で開始または終了する値は使用できません", ssidInvalid: "SSID は 1～32 bytes にしてください。", passwordInvalid: "パスワードは 8～63 bytes にしてください。", noReply: "Dongle から応答がありません", wifiSaved: "WiFi 設定を保存しました。再起動後に反映されます", saveFailed: "保存に失敗しました：{error}", commandComplete: "コマンドが完了しました", commandSent: "コマンドを送信しました。Dongle の再接続を待っています", rebooting: "Dongle を再起動しています", bootTitle: "Bootloader に入りますか？", bootMessage: "現在の HID とシリアル接続を切断し、ESP32 ROM Download Mode として再接続します。", trackerClearTitle: "すべての Tracker を消去しますか？", trackerClearMessage: "保存済みの Tracker マッピングをすべて削除し、Dongle を再起動します。", clearAndReboot: "消去して再起動", wifiResetTitle: "WiFi をデフォルトに戻しますか？", wifiResetMessage: "保存済みの SSID、パスワード、チャンネルを消去します。反映には再起動が必要です。", restoreDefault: "デフォルトに戻す", wifiRestored: "デフォルト WiFi 設定に戻しました。再起動後に反映されます", operationFailed: "操作に失敗しました：{error}", unsupportedBrowser: "このブラウザは Web Serial に対応していません。デスクトップ版 Chrome または Edge を使用してください。", secureContextRequired: "Web Serial には HTTPS 接続が必要です。GitHub Pages の URL から開いてください。"
@@ -40,7 +41,7 @@ const translations = {
     deviceInfo: "Device information", refreshStatus: "Update status", statusUpdated: "Operating status updated", infoUpdated: "Device information updated", meowComplete: "Meow!", helpShown: "Command list shown in the terminal", product: "Product", firmware: "Firmware", usbSerial: "USB serial", chip: "Chip",
     operatingStatus: "Operating status", uptime: "Uptime", softApChannel: "SoftAP channel", connectedDevices: "Connected devices", chipTemperature: "Chip temperature", packetStats: "Packet statistics", ready: "Ready",
     wifiSettings: "WiFi settings", restartPending: "Restart pending", password: "Password", passwordPlaceholder: "At least 8 characters", showPassword: "Show", hidePassword: "Hide", passwordHelp: "8–63 bytes; restart after saving", channel: "Channel", autoChannel: "Automatically select 1 / 6 / 11", saveWifi: "Save WiFi settings", readAgain: "Read again",
-    infoDescription: "Device and version details", statusDescription: "Current operating status", meowDescription: "Meow.", helpDescription: "Show all commands", storedTrackers: "Stored Trackers", trackerConnectPrompt: "Connect to read", noStoredTrackers: "No stored Trackers.", clearTracker: "Clear Trackers",
+    infoDescription: "Device and version details", statusDescription: "Current operating status", meowDescription: "Meow.", helpDescription: "Show all commands", storedTrackers: "Stored Trackers", trackerConnectPrompt: "Connect to read", noStoredTrackers: "No stored Trackers.", trackerDisplay: "Tracker {number} (ID {id})  {mac}", clearTracker: "Clear Trackers", connectedCapacity: "Connected now", storedCapacity: "Stored",
     advancedTitle: "Terminal and system actions", clearScreen: "Clear screen", terminalWaiting: "Waiting for Dongle connection…", commandPlaceholder: "Enter a command, for example status", serialCommand: "Serial command", send: "Send", systemActions: "System actions", rebootDongle: "Restart Dongle", enterBootloader: "Enter Bootloader", restoreWifi: "Restore default WiFi settings",
     cantConnect: "Can't connect?", cantConnectHelp: "Close nRF Connect, PuTTY, or any other application using the serial port.", dataSafety: "Data safety", dataSafetyHelp: "No login is required, and passwords are never sent over the network.", browser: "Browser", browserHelp: "Use desktop Chrome or Edge and open this page over HTTPS.", pleaseConfirm: "Please confirm", confirmAction: "Confirm action", cancel: "Cancel", confirm: "Confirm",
     terminalConnected: "[Connected] SlimeVR WiFi Dongle\n", connectionInterrupted: "Serial connection interrupted: {error}", incompatibleDevice: "The selected device is not a compatible SlimeVR WiFi Dongle", connectedToast: "Dongle connected", portBusy: "Unable to open the serial port. Close other serial tools and try again.", connectionFailed: "Connection failed: {error}", disconnectedToast: "Dongle disconnected", dongleNotConnected: "Dongle is not connected", previousPending: "The previous command is still being processed", serialClosed: "Serial port closed", packetValue: "Dropped {dropped} / HID {failed}", readFailed: "Read failed: {error}", invalidLineBreak: "The value cannot contain a line break or NUL", invalidQuotes: "The value cannot begin or end with a quote while containing both quote types", ssidInvalid: "SSID must be 1–32 bytes.", passwordInvalid: "Password must be 8–63 bytes.", noReply: "The Dongle did not reply", wifiSaved: "WiFi settings saved; restart to apply", saveFailed: "Save failed: {error}", commandComplete: "Command complete", commandSent: "Command sent; waiting for the Dongle to reconnect", rebooting: "Dongle is restarting", bootTitle: "Enter Bootloader?", bootMessage: "The Dongle will disconnect its current HID and serial interfaces and reappear in ESP32 ROM Download Mode.", trackerClearTitle: "Clear all Trackers?", trackerClearMessage: "All stored Tracker mappings will be deleted and the Dongle will restart.", clearAndReboot: "Clear and restart", wifiResetTitle: "Restore default WiFi?", wifiResetMessage: "The saved SSID, password, and channel will be cleared. Restart to apply the defaults.", restoreDefault: "Restore defaults", wifiRestored: "Default WiFi settings restored; restart to apply", operationFailed: "Operation failed: {error}", unsupportedBrowser: "This browser does not support Web Serial. Use desktop Chrome or Edge.", secureContextRequired: "Web Serial requires a secure HTTPS connection. Open this page from its GitHub Pages URL."
@@ -102,6 +103,8 @@ const state = {
   closing: false,
   pending: null,
   commandQueue: Promise.resolve(),
+  trackerEntries: null,
+  trackerFallback: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -123,6 +126,8 @@ const ui = {
   wifiError: $("#wifi-error"),
   restartBadge: $("#restart-badge"),
   trackerList: $("#tracker-list"),
+  trackerConnectedCapacity: $("#tracker-connected-capacity"),
+  trackerStoredCapacity: $("#tracker-stored-capacity"),
   dialog: $("#confirm-dialog"),
   dialogTitle: $("#dialog-title"),
   dialogMessage: $("#dialog-message"),
@@ -131,6 +136,12 @@ const ui = {
 };
 
 let toastTimer = 0;
+
+function updateCapacity(element, count) {
+  const validCount = Number.isFinite(count) ? count : null;
+  element.textContent = `${validCount ?? "—"} / ${MAX_TRACKERS}`;
+  element.classList.toggle("is-full", validCount !== null && validCount >= MAX_TRACKERS);
+}
 
 function showToast(message, error = false) {
   clearTimeout(toastTimer);
@@ -256,6 +267,11 @@ async function closePort(showMessage = true) {
   } finally {
     state.port = null;
     state.closing = false;
+    state.trackerEntries = null;
+    state.trackerFallback = null;
+    ui.trackerList.textContent = t("trackerConnectPrompt");
+    updateCapacity(ui.trackerConnectedCapacity, null);
+    updateCapacity(ui.trackerStoredCapacity, null);
     setConnected(false);
     if (showMessage) showToast(t("disconnectedToast"));
   }
@@ -323,6 +339,8 @@ function updateStatus(text) {
   $("#status-hid").textContent = status["hid ready"] === "yes" ? t("ready") : (status["hid ready"] || "—");
   $("#status-channel").textContent = status.channel || "—";
   $("#status-stations").textContent = status["connected stations"] || "—";
+  updateCapacity(ui.trackerConnectedCapacity, Number.parseInt(status["connected stations"], 10));
+  updateCapacity(ui.trackerStoredCapacity, Number.parseInt(status["stored trackers"], 10));
   $("#status-temperature").textContent = status["chip temperature"] || "—";
   const dropped = status["dropped packets"] ?? "—";
   const failed = status["failed hid reports"] ?? "—";
@@ -358,15 +376,39 @@ async function refreshWifi(logToTerminal = false) {
   return response;
 }
 
+function renderTrackerList() {
+  if (state.trackerEntries === null) return;
+
+  ui.trackerList.textContent = state.trackerEntries.length
+    ? state.trackerEntries.map(({ id, mac }) => t("trackerDisplay", {
+      number: id + 1,
+      id,
+      mac,
+    })).join("\n")
+    : (state.trackerFallback || t("noStoredTrackers"));
+}
+
 async function refreshTrackers(logToTerminal = false) {
   const response = await sendCommand("trackers list", logToTerminal);
-  const trackers = response
+  const lines = response
     .replace(/^Stored trackers:\s*/i, "")
     .split(/\r?\n/)
     .map((line) => line.trim())
+    .filter(Boolean);
+  const trackers = lines
+    .map((line) => line.match(/^(\d+)\s*:\s*(.+)$/))
     .filter(Boolean)
-    .join("\n");
-  ui.trackerList.textContent = trackers || t("noStoredTrackers");
+    .map((match) => ({
+      id: Number.parseInt(match[1], 10),
+      mac: match[2],
+    }));
+  const empty = lines.some((line) => /^No stored trackers\.?$/i.test(line));
+  state.trackerEntries = trackers;
+  state.trackerFallback = !trackers.length && !empty && lines.length
+    ? lines.join("\n")
+    : null;
+  renderTrackerList();
+  updateCapacity(ui.trackerStoredCapacity, trackers.length);
   return response;
 }
 
@@ -452,6 +494,7 @@ $("#tracker-read").addEventListener("click", refreshTrackers);
 ui.wifiForm.addEventListener("submit", saveWifi);
 $("#language-select").addEventListener("change", (event) => {
   applyLanguage(event.currentTarget.value, true);
+  renderTrackerList();
   setConnected(Boolean(state.port));
   $("#password-toggle").textContent = t(ui.wifiPassword.type === "text" ? "hidePassword" : "showPassword");
   updateBrowserWarning();

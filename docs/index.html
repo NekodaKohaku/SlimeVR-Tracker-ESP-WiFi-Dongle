@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#07120f">
   <meta name="description" content="SlimeVR WiFi Dongle 的免安裝 Web Serial 控制台。">
   <title>NekoTora Dongle Manager</title>
-  <link rel="stylesheet" href="./styles.css?v=20260805-4">
+  <link rel="stylesheet" href="./styles.css?v=20260806-2">
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -144,6 +144,10 @@
             <button class="button button-danger" id="tracker-clear" type="button" disabled data-i18n="clearTracker">清除 Tracker</button>
           </div>
         </div>
+        <div class="tracker-capacity">
+          <div><span data-i18n="connectedCapacity">目前連線</span><strong id="tracker-connected-capacity">— / 10</strong></div>
+          <div><span data-i18n="storedCapacity">已儲存</span><strong id="tracker-stored-capacity">— / 10</strong></div>
+        </div>
       </article>
     </section>
 
@@ -209,6 +213,6 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="./app.js?v=20260805-4" defer></script>
+  <script src="./app.js?v=20260806-2" defer></script>
 </body>
 </html>
