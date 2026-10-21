@@ -26,6 +26,18 @@ ESP32-S3 Dongle を PC に接続すると、Dongle が独立した SoftAP ホッ
 
 ESP32-S2 でも理論上は動作する可能性がありますが、最大接続数と安定性は未確認です。
 
+### Flash 容量とビルド環境
+
+ESP32-S3 は Flash / PSRAM の構成が異なります。実機の容量に合う環境を選んでください。
+
+| PlatformIO 環境 | Flash | PSRAM |
+| :--- | :--- | :--- |
+| `slime_dongle_s3` | 16MB | OPI PSRAM |
+| `slime_dongle_s3_4mb` | 4MB | 不要・初期化しません |
+| `slime_dongle_xiao_s3` | 8MB | OPI PSRAM |
+
+4MB ボードのビルド: `pio run -e slime_dongle_s3_4mb`。書き込みは同じコマンドに `-t upload` を追加します。4MB 環境は `default.csv` を使用し、アプリ領域は 1,310,720 bytes です。容量の異なる環境のバイナリを使用しないでください。新しい 4MB 環境は実機での起動確認が必要です。LED は GPIO17、BOOT ボタンは GPIO0 を前提とします。市販ボードで異なる場合は `variants/slime_dongle_s3/pins_arduino.h` を調整してください。
+
 ### ⚙️ デフォルト WiFi 設定
 
 | 設定項目 | デフォルト値 | 備考 |
@@ -34,6 +46,14 @@ ESP32-S2 でも理論上は動作する可能性がありますが、最大接�
 | **パスワード** | 初回起動時に生成 | 装置ごとに保存される 12 文字のランダム値 |
 | **UDP ポート** | `6969` | SlimeVR のデフォルトポート |
 | **最大接続数** | `10` | ESP32 SoftAP の最大制限 |
+
+### 初期パスワードの確認
+
+PC に USB 接続し、上記の **Open SlimeVR WiFi Dongle Manager** をデスクトップ版 Chrome / Edge で開き、Dongle に接続して WiFi 設定欄を確認してください。パスワードの「表示」を押すと確認できます。シリアルターミナル（115200 baud）で `wifi show` を実行しても確認できます。その SSID とパスワードを Tracker に設定してください。
+
+初回起動時に生成した 12 文字のパスワードは装置に保存され、再起動や `wifi reset` では変わりません。保存済みのカスタム WiFi 設定はアップデート後も優先されます。以前の固定デフォルトを使い、カスタム設定を保存していない装置では、アップデート後に SSID / パスワードが変わるため、Tracker 側の再設定が必要です。NVS を全消去すると新しいパスワードが生成されるため、再確認・再設定が必要です。NVS への保存に失敗した場合は `src/WifiDongleConfig.h` の `apPassword` が使われるため、必ず `wifi show` で実際の値を確認してください。
+
+`appendMacSuffixToDefaultSsid = true` で装置固有 SSID、`generateRandomDefaultPassword = true` でランダム初期パスワードを有効にしています。固定値にしたい場合は対応する設定を `false` にし、`apSsid` / `apPassword` を変更して再ビルドしてください。保存済み設定がある場合は `wifi reset` 後に再起動するとデフォルトが適用されます。
 
 ### 🛠️ 設定変更
 
@@ -124,6 +144,18 @@ This firmware has currently been tested on:
 
 ESP32-S2 may theoretically work, but the maximum connection count and stability are not yet confirmed.
 
+### Flash Capacity and Build Environment
+
+ESP32-S3 boards have different Flash / PSRAM configurations. Select the environment matching your hardware.
+
+| PlatformIO environment | Flash | PSRAM |
+| :--- | :--- | :--- |
+| `slime_dongle_s3` | 16MB | OPI PSRAM |
+| `slime_dongle_s3_4mb` | 4MB | Not required or initialized |
+| `slime_dongle_xiao_s3` | 8MB | OPI PSRAM |
+
+Build for 4MB: `pio run -e slime_dongle_s3_4mb`; add `-t upload` to flash it. This environment uses `default.csv` with a 1,310,720-byte application slot. Do not use a binary built for a different flash capacity. The new 4MB environment still needs hardware boot verification. LED GPIO17 and BOOT GPIO0 are assumed; adjust `variants/slime_dongle_s3/pins_arduino.h` if your board differs.
+
 ### ⚙️ Default WiFi Settings
 
 | Setting | Default Value | Note |
@@ -132,6 +164,14 @@ ESP32-S2 may theoretically work, but the maximum connection count and stability 
 | **Password** | Generated on first boot | Device-specific 12-character random value |
 | **UDP Port** | `6969` | SlimeVR default port |
 | **Maximum Connections** | `10` | Maximum limit of ESP32 SoftAP |
+
+### Finding the Initial Password
+
+Connect the Dongle to your PC over USB, open **Open SlimeVR WiFi Dongle Manager** above in desktop Chrome / Edge, connect to the Dongle, and check the WiFi settings. Click **Show** to reveal the password. Alternatively, open a serial terminal at 115200 baud and run `wifi show`. Configure your Trackers with the displayed SSID and password.
+
+The 12-character password generated on first boot is saved on the device. Rebooting or running `wifi reset` does not regenerate it. Existing saved custom WiFi settings continue to take priority after an update. Devices using the previous fixed defaults without saved custom settings will change SSID / password after updating; reconfigure your Trackers with the new values. Erasing all NVS generates a new password, so read it again and update your Trackers. If saving the generated password to NVS fails, `apPassword` in `src/WifiDongleConfig.h` is used as a fallback; always check the actual value with `wifi show`.
+
+`appendMacSuffixToDefaultSsid = true` enables the device-specific SSID; `generateRandomDefaultPassword = true` enables the random initial password. To use fixed defaults, set the corresponding options to `false`, edit `apSsid` / `apPassword`, and rebuild. If custom settings are already saved, run `wifi reset` and reboot to apply defaults.
 
 ### 🛠️ Configuration
 
@@ -222,6 +262,18 @@ If you use a Potetora-series device, you can use the Potetora custom firmware de
 
 ESP32-S2 理論上可能可行，但最大連線數與穩定性尚未確認。
 
+### Flash 容量與建置環境
+
+ESP32-S3 有不同 Flash／PSRAM 配置，請依實際硬體選擇環境。
+
+| PlatformIO 環境 | Flash | PSRAM |
+| :--- | :--- | :--- |
+| `slime_dongle_s3` | 16MB | OPI PSRAM |
+| `slime_dongle_s3_4mb` | 4MB | 不需要，也不會初始化 |
+| `slime_dongle_xiao_s3` | 8MB | OPI PSRAM |
+
+4MB 建置指令：`pio run -e slime_dongle_s3_4mb`；加上 `-t upload` 即可燒錄。此環境使用 `default.csv`，單一應用程式分割區為 1,310,720 bytes。請勿使用其他容量環境產生的韌體。新增的 4MB 環境仍需實機開機驗證。LED 預設 GPIO17、BOOT 按鈕 GPIO0；若板子不同，請調整 `variants/slime_dongle_s3/pins_arduino.h`。
+
 ### ⚙️ 預設 WiFi 設定
 
 | 設定項目 | 預設值 | 備註 |
@@ -230,6 +282,14 @@ ESP32-S2 理論上可能可行，但最大連線數與穩定性尚未確認。
 | **密碼** | 第一次開機時產生 | 每台裝置各自保存的 12 字元隨機值 |
 | **UDP 埠** | `6969` | SlimeVR 預設埠 |
 | **最大連線數** | `10` | ESP32 SoftAP 的最大限制 |
+
+### 如何找到初始密碼
+
+用 USB 將 Dongle 接到 PC，透過桌面版 Chrome／Edge 開啟上方 **Open SlimeVR WiFi Dongle Manager**，連接 Dongle 後查看 WiFi 設定欄，按「顯示」即可查看密碼。也可以開啟序列終端（115200 baud），輸入 `wifi show`。將顯示的 SSID 與密碼設定到 Tracker 即可。
+
+首次開機產生的 12 字元密碼會保存在裝置中，重開機或執行 `wifi reset` 都不會重新產生。升級後仍優先使用既有已儲存的自訂 WiFi 設定。若之前使用固定預設值、未儲存自訂設定，升級後 SSID／密碼會改變，需以新值重新設定 Tracker。若全數清除 NVS，會產生新密碼，需重新查詢並更新 Tracker 設定。若隨機密碼無法存入 NVS，會使用 `src/WifiDongleConfig.h` 的 `apPassword` 備用值，請以 `wifi show` 顯示的實際值為準。
+
+目前 `appendMacSuffixToDefaultSsid = true` 啟用裝置專屬 SSID，`generateRandomDefaultPassword = true` 啟用隨機初始密碼。若要改用固定預設值，可將對應選項改為 `false`，修改 `apSsid`／`apPassword` 後重新建置。若已有自訂設定，需執行 `wifi reset` 並重開機，才會套用預設值。
 
 ### 🛠️ 設定修改
 
