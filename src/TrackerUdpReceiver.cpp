@@ -101,19 +101,32 @@ int TrackerUdpReceiver::findPeerByMac(const uint8_t mac[6]) {
 	return -1;
 }
 
-int TrackerUdpReceiver::findPeerByIp(const IPAddress &ip) {
+int TrackerUdpReceiver::findPeerByEndpoint(const IPAddress &ip, uint16_t port) {
 	for (size_t i = 0; i < kMaxTrackers; i++)
-		if (m_peers[i].used && m_peers[i].ip == ip)
+		if (m_peers[i].used && m_peers[i].endpointBound
+		    && m_peers[i].ip == ip && m_peers[i].port == port)
 			return static_cast<int>(i);
 	return -1;
 }
 
 int TrackerUdpReceiver::findOrAddPeer(const uint8_t mac[6], const IPAddress &ip, uint16_t port, bool &isNew) {
 	isNew = false;
+	// A DHCP address may now belong to a different tracker. Keep its stable
+	// identity, but invalidate the previous endpoint before binding the new one.
+	for (auto &peer : m_peers) {
+		if (peer.used && peer.endpointBound && peer.ip == ip
+		    && memcmp(peer.mac, mac, 6) != 0) {
+			peer.endpointBound = false;
+			peer.connected = false;
+			PacketHandling::getInstance().setTrackerOnline(peer.trackerId, false);
+		}
+	}
 	int idx = findPeerByMac(mac);
 	if (idx >= 0) {
 		m_peers[idx].ip = ip;
 		m_peers[idx].port = port;
+		m_peers[idx].endpointBound = true;
+		memset(m_peers[idx].accelFixed, 0, sizeof(m_peers[idx].accelFixed));
 		return idx;
 	}
 
@@ -129,6 +142,7 @@ int TrackerUdpReceiver::findOrAddPeer(const uint8_t mac[6], const IPAddress &ip,
 			memcpy(m_peers[i].mac, mac, 6);
 			m_peers[i].ip = ip;
 			m_peers[i].port = port;
+			m_peers[i].endpointBound = true;
 			m_peers[i].lastHeartbeatMs = 0;
 			isNew = true;
 			Serial.printf("[Receiver] new tracker id=%u mac=%02x:%02x:%02x:%02x:%02x:%02x ip=%s\n",
@@ -159,18 +173,21 @@ void TrackerUdpReceiver::sendHeartbeat(Peer &p) {
 
 void TrackerUdpReceiver::handleAccel(Peer &p, const uint8_t *data, size_t len) {
 	if (len < 25) return;
+	uint8_t sensorId = data[24];
+	if (sensorId >= kMaxSensors) return;
 	float x = readBeFloat(&data[12]);
 	float y = readBeFloat(&data[16]);
 	float z = readBeFloat(&data[20]);
 	if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)) return;
-	p.accelFixed[0] = toFixed<7>(x);
-	p.accelFixed[1] = toFixed<7>(y);
-	p.accelFixed[2] = toFixed<7>(z);
+	p.accelFixed[sensorId][0] = toFixed<7>(x);
+	p.accelFixed[sensorId][1] = toFixed<7>(y);
+	p.accelFixed[sensorId][2] = toFixed<7>(z);
 }
 
 void TrackerUdpReceiver::handleRotation(Peer &p, const uint8_t *data, size_t len) {
 	if (len < 31) return;
-	uint8_t sensorId = data[12] & 0x0F;
+	uint8_t sensorId = data[12];
+	if (sensorId >= kMaxSensors) return;
 
 	float qx = readBeFloat(&data[14]);
 	float qy = readBeFloat(&data[18]);
@@ -189,9 +206,9 @@ void TrackerUdpReceiver::handleRotation(Peer &p, const uint8_t *data, size_t len
 	memcpy(&payload[3], &qyF, 2);
 	memcpy(&payload[5], &qzF, 2);
 	memcpy(&payload[7], &qwF, 2);
-	memcpy(&payload[9],  &p.accelFixed[0], 2);
-	memcpy(&payload[11], &p.accelFixed[1], 2);
-	memcpy(&payload[13], &p.accelFixed[2], 2);
+	memcpy(&payload[9],  &p.accelFixed[sensorId][0], 2);
+	memcpy(&payload[11], &p.accelFixed[sensorId][1], 2);
+	memcpy(&payload[13], &p.accelFixed[sensorId][2], 2);
 
 	PacketHandling::getInstance().insert(payload);
 }
@@ -270,7 +287,7 @@ void TrackerUdpReceiver::onPacket(AsyncUDPPacket &pkt) {
 		return;
 	}
 
-	int idx = findPeerByIp(pkt.remoteIP());
+	int idx = findPeerByEndpoint(pkt.remoteIP(), pkt.remotePort());
 	if (idx < 0) return;
 	Peer &p = m_peers[idx];
 
@@ -295,7 +312,7 @@ void TrackerUdpReceiver::update() {
 	uint32_t now = millis();
 	for (size_t i = 0; i < kMaxTrackers; i++) {
 		Peer &p = m_peers[i];
-		if (!p.used) continue;
+		if (!p.used || !p.endpointBound) continue;
 
 		if (kEnableHeartbeat
 		    && static_cast<int32_t>(now - p.lastHeartbeatMs) >= static_cast<int32_t>(kHeartbeatIntervalMs)) {

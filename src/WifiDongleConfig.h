@@ -15,7 +15,7 @@ static constexpr char apSsid[] = "SlimeDongle";
 
 // true: デフォルト SSID に WiFi MAC の末尾 3 bytes を追加します。
 // wifi set でカスタム SSID を保存した場合、サフィックスは追加されません。
-static constexpr bool appendMacSuffixToDefaultSsid = false;
+static constexpr bool appendMacSuffixToDefaultSsid = true;
 
 // ランダムパスワード無効時、または NVS への保存に失敗した場合に
 // 使用するフォールバックパスワードです。
@@ -23,7 +23,7 @@ static constexpr char apPassword[] = "slimedongle12345";
 
 // true: 初回起動時にデバイス固有のパスワードを生成し、独立した NVS に
 // 保存します。wifi reset では変更されず、NVS 全消去後に再生成されます。
-static constexpr bool generateRandomDefaultPassword = false;
+static constexpr bool generateRandomDefaultPassword = true;
 static constexpr uint8_t randomDefaultPasswordLength = 12;
 
 // 0: 起動時に 1 / 6 / 11 から自動選択します。

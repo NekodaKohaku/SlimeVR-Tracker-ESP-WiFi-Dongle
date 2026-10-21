@@ -38,6 +38,7 @@ private:
 
 	static constexpr uint16_t kPort = WifiDongleConfig::udpPort;
 	static constexpr size_t   kMaxTrackers = WifiDongleConfig::maxTrackers;
+	static constexpr size_t   kMaxSensors = 16;
 
 	static constexpr bool     kEnableHeartbeat    = WifiDongleConfig::officialHeartbeatEnabled;
 	static constexpr uint32_t kHeartbeatIntervalMs = WifiDongleConfig::officialHeartbeatIntervalMs;
@@ -64,7 +65,8 @@ private:
 		IPAddress ip;
 		uint16_t  port = 0;
 		uint32_t  lastHeartbeatMs = 0;
-		int16_t   accelFixed[3] = {0, 0, 0};
+		int16_t   accelFixed[kMaxSensors][3] = {};
+		bool      endpointBound = false;
 		uint32_t  lastSeenMs = 0;
 		bool      connected = false;
 	};
@@ -79,7 +81,7 @@ private:
 	bool parseHandshake(const uint8_t *data, size_t len, uint8_t outMac[6],
 	                    uint32_t &boardType, uint32_t &mcuType, uint32_t &imuType);
 	int  findPeerByMac(const uint8_t mac[6]);
-	int  findPeerByIp(const IPAddress &ip);
+	int  findPeerByEndpoint(const IPAddress &ip, uint16_t port);
 	int  findOrAddPeer(const uint8_t mac[6], const IPAddress &ip, uint16_t port, bool &isNew);
 	void sendHandshakeReply(const IPAddress &ip, uint16_t port);
 	void sendHeartbeat(Peer &p);
