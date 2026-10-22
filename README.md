@@ -94,6 +94,35 @@ wifi set channel <auto|1-13> Save a new WiFi channel
 wifi reset                   Restore this device's default WiFi settings
 ```
 
+### USB スケジューリングと診断（v1.1.5）
+
+USB は 1 ms に最大 1 バッチを送信し、新センサーは登録後に姿勢を送ります。送信受付失敗時は登録・状態を保持して再試行し、姿勢は最新値に更新します。センサーごとの最新値を保持するため、古い姿勢が蓄積しません。状態キューには上限があり、超過は計数します。
+
+Web Serial の「状態を更新」、または `diagnostics` で Tracker ごとの接続状態、RSSI（dBm、0 は未報告）、UDP PPS、最終有効受信からの時間、センサー ID、受信数、姿勢統合数、USB 受付失敗試行数、UDP 形式拒否、制御キュー破棄数を確認できます。計数は起動後の累積です。PPS は初期観測期間が必要で、受信停止後は 0 になります。姿勢統合は無線損失ではなく、USB 受付も Server の受信を保証しません。形式拒否は対応パケットの不正形式で、RF 損失率は推定しません。Tracker を特定できない拒否は `status` の全体 `Rejected UDP packets` のみに含まれます。
+
+
+各列の ? はホバー・キーボードフォーカス・タップで説明を表示します。Escape、再タップ、外側クリックで閉じます。RX は累積受信数、USB 失敗は受付失敗試行数で、無線損失数ではありません。
+
+公式 SlimeVR ESP Tracker ファームを対象とします。USB スケジュール・診断・保存済み ID・Dongle WiFi 設定は Tracker 改造不要です。RSSI・電池・温度・拡張センサーは Tracker のビルドとハードが送信する情報に依存します。確認した公式 UDP 実装には PingPong と一部センサー設定フラグがありますが、本 Dongle はまだ操作 UI を提供していません。ESB/ESP-NOW OTA・TDMA・doze/wake・nRF 派生版の校正／電源イベントは直接移植できません。公式固有の OTA は別途設計・検証が必要です。無受信だけでは休止・電源断・無線断を区別できません。
+
+### 個別登録削除・センサー情報・診断出力（v1.1.6）
+
+Tracker 一覧の「登録を削除」で、オフラインの 1 台だけを削除できます。先に対象 Tracker を切り、既定で 6 秒以上待ってください。他の ID と Tracker の WiFi 設定は変わりません。削除された MAC と ID は Dongle 再起動まで再登録／再利用を抑止します。同じ WiFi 設定の Tracker を再び起動すると、Dongle 再起動後は再登録される場合があります。保持した ID と新規接続できる空き枠は再起動後に整理されます。
+
+センサー別情報は Tracker を選択して取得します。各センサーの最終姿勢時刻、IMU、温度、報告状態を独立表示し、未報告は — とします。「直近姿勢」は 1.5 秒以内の受信で、故障や休眠の判定ではありません。電池と RSSI は物理 Tracker で共有します。
+
+「診断をエクスポート」は JSON をローカル保存し、WiFi SSID・パスワード・MAC・USB シリアル・端末ログは含みません。値は順次取得するため、同一時刻のスナップショットではありません。コンソールは `trackers remove <id>` と `sensors <id>` を追加しました。旧ファームで完全なデータが得られない場合、正常なレポートとして保存しません。
+
+### WiFi AP とチャンネル選択の参考（v1.1.7）
+
+Web Serial のスキャンは周辺 2.4GHz WiFi AP の BSSID 数・最強信号・チャンネルを表示し、1/6/11 から参考候補を示します。AP 信号と周波数の重なりによる独自の推定値で、干渉率・実トラフィック・速度の測定ではありません。主に 20MHz 幅を想定し、Bluetooth・無線音声・USB 3.0 雑音などは測定できません。候補が良くても実際の安定性は保証されません。
+
+Tracker をすべて切り、WiFi クライアントを切断してから USB 経由でスキャンしてください。最後の受信から既定で 6 秒以上待ちます。通常の VR 機器を動かし、Dongle は普段の位置に置いてください。接続端末があると開始を拒否し、測定中の接続で中止します。無線チャンネルを一時変更するため、使用中の測定には向きません。
+
+保存は手動で、現在のチャンネルは変わりません。Dongle 再起動後に適用され、Tracker は再接続します。結果は 5 分で失効し、AP がなければ推奨しません。コンソール: `channels start` / `channels status` / `channels cancel`。`channels apply <generation> <channel>` は新しい結果の候補だけ保存します。AP 名や MAC は結果に含めません。
+
+適用後は Tracker を起動して同じ VR 条件で診断を比較してください。USB 延長で主機・USB 3.0 機器から離す比較も有効です。PPS や最終受信時刻は観測値で、無線損失率や干渉源を直接示しません。公式 Tracker ファームの変更は不要です。
+
 ### 🌐 Web Serial Control
 
 Dongle の設定確認・変更には、[Web Serial Control](https://nekodakohaku.github.io/SlimeVR-Tracker-ESP-WiFi-Dongle/) を使用してください。デスクトップ版 Chrome または Edge が必要です。
@@ -212,6 +241,35 @@ wifi set channel <auto|1-13> Save a new WiFi channel
 wifi reset                   Restore this device's default WiFi settings
 ```
 
+### USB scheduling and diagnostics (v1.1.5)
+
+USB reports are limited to one batch per millisecond. New sensor registration is sent before its poses. Failed submissions retain registration/status records for retry; retried poses are refreshed to the latest values. Each sensor has a latest-pose slot, so backlog does not grow with its sampling rate. Status queues remain bounded; overflow is counted.
+
+Use **Update status** in Web Serial to refresh the per-tracker diagnostics table, or run `diagnostics` in the console. It shows online state, RSSI (dBm; 0 means not yet reported), received UDP datagrams per second, time since the last accepted datagram, sensor IDs, received datagrams, coalesced poses, failed USB submission attempts, rejected UDP packets, and control-queue drops. Counters are since boot; PPS needs an initial sampling window and becomes zero when reception stops. Coalescing is intentional replacement of unsent poses, not radio loss. USB acceptance does not prove the Server received a report. Rejected packets are malformed supported datagrams; no RF-loss estimate is shown. Packets that cannot be attributed to a known tracker only appear in the global `Rejected UDP packets` status counter.
+
+
+Diagnostic column headers include ? help buttons, available by hover, keyboard focus or tap. Escape, a second tap or an outside click dismisses the explanation. RX means cumulative received datagrams; USB failures count submission attempts, not lost wireless packets.
+
+This receiver targets the official SlimeVR ESP Tracker firmware. Local USB scheduling, diagnostics, saved mappings and WiFi settings do not require a custom Tracker build. RSSI, battery, temperature and auxiliary-sensor data depend on what that Tracker build and hardware actually send. The checked official UDP implementation supports PingPong and specific sensor config flags, but this Dongle does not yet expose those controls. ESB/ESP-NOW OTA, TDMA, doze/wake and the nRF fork's calibration/power event protocol cannot simply be transplanted. The official Tracker has its own OTA implementation; integrating it needs a separate design and test. Missing packets do not identify whether a Tracker is asleep, powered off or disconnected.
+
+### Individual removal, sensor details and report export (v1.1.6)
+
+Use **Remove binding** beside a stored offline Tracker. Turn it off first and wait at least the default 6-second timeout. Other IDs and the Tracker WiFi settings stay unchanged. Removed MACs cannot re-register and removed IDs/peer slots are retired until Dongle restart. After restart, a Tracker with matching WiFi credentials may join again. Restart also releases retired IDs/slots for new devices.
+
+Select a Tracker to read independent sensor observations: last pose age, IMU type, temperature, reported state and pose count. Missing values display —. Recent pose means a pose received within 1.5 seconds, not a hardware health or sleep verdict. Battery and RSSI remain shared by the physical Tracker.
+
+**Export diagnostics** saves a local JSON report. WiFi SSID/password, MAC addresses, USB serial and terminal logs are excluded. Samples are sequential, not an atomic snapshot. Console commands: `trackers remove <id>` and `sensors <id>`. Incomplete data from an older firmware is not exported as a successful report.
+
+### Nearby WiFi APs and channel reference (v1.1.7)
+
+The Web Serial scan shows nearby 2.4 GHz BSSID counts, strongest signals and channels, with a reference suggestion among 1/6/11. Scores are a heuristic based on AP signal strength and frequency overlap, primarily assuming 20 MHz channels. They do not measure interference percentage, traffic or throughput, and cannot measure Bluetooth, wireless audio or USB 3.0 noise. A suggestion does not guarantee stability.
+
+Turn all Trackers off, disconnect WiFi clients and wait at least the default 6-second receiver timeout. Scan over USB with your normal VR equipment operating and the Dongle in its usual position. Connected clients prevent scanning; a joining client aborts it. The radio temporarily changes channels, so do not scan during tracking.
+
+Saving is manual and only takes effect after Dongle restart, when Trackers reconnect. Results expire after 5 minutes; no APs means no suggestion. Console: `channels start`, `channels status`, `channels cancel`; `channels apply <generation> <channel>` saves only the fresh suggested candidate. Results contain no AP names or MAC addresses.
+
+After applying, turn Trackers on and compare diagnostics under the same VR conditions. Also compare moving the Dongle away from the PC/USB 3.0 devices with a USB extension. PPS and last-reception age are observations, not direct radio-loss or interference-source measurements. No changes to official Tracker firmware are required.
+
 ### 🌐 Web Serial Control
 
 To view or change the Dongle settings, use the [Web Serial Control](https://nekodakohaku.github.io/SlimeVR-Tracker-ESP-WiFi-Dongle/). Desktop Chrome or Edge is required.
@@ -329,6 +387,35 @@ wifi set password <password> Save a new SoftAP password
 wifi set channel <auto|1-13> Save a new WiFi channel
 wifi reset                   Restore this device's default WiFi settings
 ```
+
+### USB 排程與診斷（v1.1.5）
+
+每毫秒最多提交一批 USB 封包，新感測器會先註冊再送姿態。提交失敗時保留註冊／狀態等待重試，姿態則更新為最新值。每個感測器使用一個最新姿態欄位，避免因取樣頻率增加而累積舊動作。狀態佇列仍有容量上限，超出時會計數。
+
+在 Web Serial 按「更新狀態」可更新每台 Tracker 診斷表，或在終端輸入 `diagnostics`。欄位包括在線狀態、RSSI（dBm；0 表示尚未回報）、UDP 收包頻率、距最後有效收包時間、感測器 ID、累積收包、姿態合併、USB 提交失敗嘗試、UDP 格式拒絕及控制佇列丟棄。計數自開機累積；PPS 需先累積取樣時間，停止收包後歸零。姿態合併是以新值替換未送舊值，不等於無線丟包；USB 接受也不代表 Server 已收到。格式拒絕指已支援封包的格式不合法，此處不估算 RF 丟包率。無法歸屬已知 Tracker 的拒絕封包只列入 `status` 的全域 `Rejected UDP packets`。
+
+
+各欄 ? 支援滑鼠停留、鍵盤聚焦或點按，按 Escape、再次點按或點擊外側可關閉。RX 是累積收包，USB 失敗是提交失敗嘗試，皆不代表無線丟包。
+
+本接收器以官方 SlimeVR ESP Tracker 韌體為目標。USB 排程、診斷、保存 ID 與 Dongle WiFi 設定不需要改 Tracker 韌體。RSSI、電池、溫度與副感測器資料則取決於該 Tracker 的編譯設定與硬體實際送出什麼。核對的官方 UDP 實作有 PingPong 與特定感測器設定旗標，但本 Dongle 尚未提供這些操作。ESB/ESP-NOW OTA、TDMA、doze/wake、nRF 客製版校正／電源事件協定不能直接套用。官方 Tracker 自己有 OTA 實作，若要整合需另行設計及驗證。單憑沒有收到封包，無法判斷是休眠、關機或無線斷線。
+
+### 個別刪除、感測器資訊與報告匯出（v1.1.6）
+
+在已儲存 Tracker 旁按「移除綁定」，只移除一台離線裝置。請先關閉目標 Tracker，並等待預設至少 6 秒。其他 ID 與 Tracker 本身的 WiFi 設定不變。被刪除的 MAC 本次開機不接受重新註冊，ID／接收槽位也保留到 Dongle 重開機才釋出；重開機後，相同 WiFi 設定的 Tracker 仍可能重新加入。
+
+選擇 Tracker 可讀取各感測器獨立的最後姿態時間、IMU 型號、溫度、回報狀態與姿態數。未回報顯示 —。「近期姿態」僅表示 1.5 秒內收到姿態，不代表硬體健康或休眠判定。電池與 RSSI 仍共用實體 Tracker 的資訊。
+
+「匯出診斷報告」會下載本機 JSON，不含 WiFi 名稱、密碼、MAC、USB 序號與終端紀錄。資料依序讀取，並非同一瞬間的完整快照。終端新增 `trackers remove <id>` 與 `sensors <id>`。若舊韌體未提供完整資料，不會當作正常報告匯出。
+
+### WiFi AP 分布與選頻參考（v1.1.7）
+
+Web Serial 掃描會列出附近 2.4GHz AP 的 BSSID 數量、最強訊號與頻道，從 1／6／11 提供參考候選。分數依訊號強弱與頻道重疊估算，主要假設 20MHz 頻寬；不是干擾率、實際流量或速度測量，無法測得藍牙、無線音訊、USB 3.0 雜訊。建議頻道不保證最穩。
+
+請關閉所有 Tracker、中斷其他 WiFi 用戶端，等待最後收包後至少預設的 6 秒，再透過 USB 掃描。保持平常 VR 設備運作，Dongle 放在實際位置。有連線裝置時拒絕開始，掃描中有裝置加入則中止。掃描會暫時切換無線電頻道，請勿在追蹤使用中操作。
+
+手動儲存後，目前頻道不變；重啟 Dongle 才套用，Tracker 會重新連接。結果有效 5 分鐘，沒有 AP 時不提出建議。指令：`channels start`、`channels status`、`channels cancel`；`channels apply <generation> <channel>` 只接受新結果的建議候選。結果不包含 AP 名稱或 MAC。
+
+套用後開啟 Tracker，在相同 VR 情境比較診斷；也可用 USB 延長線移離主機與 USB 3.0 設備再比較。PPS、最後收包時間都是觀測值，不等於無線丟包率，也不能直接辨識干擾來源。不需要修改官方 Tracker 韌體。
 
 ### 🌐 Web Serial 控制台
 

@@ -10,6 +10,7 @@
 #include <cstring>
 #include <algorithm>
 #include <cmath>
+#include <mutex>
 
 #include "error_codes.h"
 #include "WifiDongleConfig.h"
@@ -27,6 +28,9 @@ public:
 	);
 
 	void update();
+    bool hasActiveTrackers();
+    enum class ForgetResult { Removed, Active, Failed };
+    ForgetResult forgetTracker(uint8_t trackerId);
 
 	void onTrackerConnected(std::function<void(uint8_t trackerId, const uint8_t *mac)> cb) {
 		m_onConnected = std::move(cb);
@@ -60,6 +64,7 @@ private:
 
 	struct Peer {
 		bool      used = false;
+        bool      removed = false;
 		uint8_t   trackerId = 0;
 		uint8_t   mac[6] = {0};
 		IPAddress ip;
@@ -71,7 +76,8 @@ private:
 		bool      connected = false;
 	};
 
-	Peer m_peers[kMaxTrackers];
+	std::mutex m_peerMutex;
+    Peer m_peers[kMaxTrackers];
 	AsyncUDP m_udp;
 	uint64_t m_packetNumber = 0;
 	std::function<void(uint8_t, const uint8_t *)> m_onConnected;

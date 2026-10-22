@@ -6,7 +6,7 @@
 namespace WifiDongleConfig {
 
 // info コマンドで表示するユーザー向けファームウェアバージョンです。
-static constexpr const char *firmwareVersion = "v1.1.4";
+static constexpr const char *firmwareVersion = "v1.1.7";
 
 // ===== SoftAP =====
 // デフォルト SSID の基本名です。MAC サフィックス有効時は

@@ -3,6 +3,8 @@
 #include "WifiDongleConfig.h"
 #include "configuration.h"
 #include "packetHandling.h"
+#include "TrackerUdpReceiver.h"
+#include "ChannelAnalysis.h"
 #include "pins_arduino.h"
 
 #include <Preferences.h>
@@ -132,6 +134,14 @@ void CommandConsole::execute(char *command) {
         printInfo();
     } else if (strcmp(command, "status") == 0) {
         printStatus();
+    } else if (strcmp(command, "diagnostics") == 0) {
+        PacketHandling::getInstance().printDiagnostics(port);
+    } else if (strcmp(command, "sensors") == 0) {
+        char *end = nullptr;
+        long id = argument ? strtol(argument, &end, 10) : -1;
+        if (!argument || end == argument || *end != '\0' || id < 0 || id >= WifiDongleConfig::maxTrackers)
+            port.println("Usage: sensors <tracker_id>");
+        else PacketHandling::getInstance().printSensors(port, static_cast<uint8_t>(id));
     } else if (strcmp(command, "uptime") == 0) {
         uint64_t seconds = static_cast<uint64_t>(esp_timer_get_time()) / 1000000ULL;
         port.printf("Uptime: %llu days %02llu:%02llu:%02llu\n",
@@ -152,12 +162,40 @@ void CommandConsole::execute(char *command) {
         if (argument != nullptr && strcmp(argument, "list") == 0) {
             port.println("Stored trackers:");
             Configuration::getInstance().printTrackers(port);
+        } else if (argument != nullptr && strncmp(argument, "remove ", 7) == 0) {
+            char *end = nullptr; long id = strtol(argument + 7, &end, 10);
+            if (end == argument + 7 || *end != '\0' || id < 0 || id >= WifiDongleConfig::maxTrackers)
+                port.println("Usage: trackers remove <tracker_id>");
+            else {
+                auto result = TrackerUdpReceiver::getInstance().forgetTracker(static_cast<uint8_t>(id));
+                if (result == TrackerUdpReceiver::ForgetResult::Removed)
+                    port.println("Removed. This identity is blocked until Dongle reboot. Other IDs are unchanged.");
+                else if (result == TrackerUdpReceiver::ForgetResult::Active)
+                    port.println("Error: tracker is active. Turn it off and wait at least 6 seconds, then retry.");
+                else port.println("Error: binding not found or storage update failed.");
+            }
         } else if (argument != nullptr && strcmp(argument, "clear") == 0) {
             Configuration::getInstance().resetTrackers();
             ESP.restart();
         } else {
-            port.println("Usage: trackers <list|clear>");
+            port.println("Usage: trackers <list|remove ID|clear>");
         }
+    } else if (strcmp(command, "channels") == 0) {
+        auto &analysis = ChannelAnalysis::getInstance();
+        if (argument && strcmp(argument, "start") == 0) {
+            const char *error = analysis.start();
+            port.println(error ? error : "Scan started.");
+        } else if (argument && strcmp(argument, "cancel") == 0) {
+            analysis.cancel(); port.println("Scan cancelled.");
+        } else if (!argument || strcmp(argument, "status") == 0) analysis.printStatus(port);
+        else if (strncmp(argument, "apply ", 6) == 0) {
+            unsigned long generation = 0; unsigned channel = 0; char extra;
+            if (sscanf(argument + 6, "%lu %u %c", &generation, &channel, &extra) == 2 &&
+                (channel == 1 || channel == 6 || channel == 11) &&
+                analysis.saveRecommendation(static_cast<uint32_t>(generation), static_cast<uint8_t>(channel)))
+                port.println("Saved. Run 'reboot' to apply.");
+            else port.println("Error: stale/invalid result or could not save. Scan again.");
+        } else port.println("Usage: channels <start|status|cancel|apply GENERATION CHANNEL>");
     } else if (strcmp(command, "wifi") == 0) {
         char subcommand[8] = {0};
         if (argument != nullptr) {
@@ -210,6 +248,11 @@ void CommandConsole::printHelp() {
     port.println("  reboot                       Restart the dongle");
     port.println("  bootloader                   Enter ESP32 ROM download mode");
     port.println("  meow                         Meow!");
+    port.println("  trackers remove <id>         Remove one offline tracker binding");
+    port.println("  sensors <id>                 Per-sensor observations");
+    port.println("  channels start|status|cancel  Analyze nearby WiFi APs (trackers off)");
+    port.println("  channels apply <gen> <ch>    Save fresh recommendation; reboot to apply");
+    port.println("  diagnostics                  Per-tracker UDP and USB counters");
     port.println("\nTrackers:");
     port.println("  trackers list                List stored trackers");
     port.println("  trackers clear               Clear tracker mappings and restart");
@@ -249,6 +292,9 @@ void CommandConsole::printStatus() {
     port.printf("Free heap: %u bytes\n", ESP.getFreeHeap());
     port.printf("Dropped packets: %u\n", packetStats.droppedPackets);
     port.printf("Failed HID reports: %u\n", packetStats.failedHidReports);
+    port.printf("Rejected UDP packets: %u\n", packetStats.rejectedUdpPackets);
+    port.printf("Coalesced poses: %u\n", packetStats.coalescedPoses);
+    port.printf("Successful HID reports: %u\n", packetStats.successfulHidReports);
     if (std::isnan(temperature)) {
         port.println("Chip temperature: unavailable");
     } else {

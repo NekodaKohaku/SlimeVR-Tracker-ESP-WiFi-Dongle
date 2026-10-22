@@ -61,23 +61,14 @@ void Configuration::setup() {
 }
 
 uint8_t Configuration::getSavedTrackerCount() {
-    if (!LittleFS.exists(savedTrackerCountPath)) {
-        Serial.printf("%s doesn't exist, returning 0 saved trackers\n", savedTrackerCountPath);
-        return 0;
-    }
-
-    auto file = LittleFS.open(savedTrackerCountPath, "r");
-    if (!file) {
-        Serial.println("Could not open saved tracker count");
-        return 0;
-    }
-    uint8_t result = 0;
-    if (file.read(&result, sizeof(result)) != sizeof(result)) {
-        result = 0;
-    }
+    std::lock_guard<std::mutex> lock(trackerMutex);
+    auto file = LittleFS.open(trackerMapPath, "r");
+    if (!file) return 0;
+    uint8_t record[7]; uint16_t mask = 0;
+    while (file.read(record, sizeof(record)) == sizeof(record))
+        if (record[6] < maxTrackers) mask |= (1u << record[6]);
     file.close();
-
-    return result;
+    return static_cast<uint8_t>(__builtin_popcount(mask));
 }
 
 void Configuration::setSavedTrackerCount(uint8_t newValue) {
@@ -90,6 +81,9 @@ void Configuration::setSavedTrackerCount(uint8_t newValue) {
 }
 
 bool Configuration::getOrCreateTrackerId(const uint8_t mac[6], uint8_t &trackerId) {
+    std::lock_guard<std::mutex> lock(trackerMutex);
+    for (uint8_t id = 0; id < maxTrackers; id++)
+        if ((retiredIds & (1u << id)) && memcmp(removedMacs[id], mac, 6) == 0) return false;
     if (LittleFS.exists(trackerMapPath)) {
         auto file = LittleFS.open(trackerMapPath, "r");
         uint8_t storedMac[6];
@@ -105,7 +99,8 @@ bool Configuration::getOrCreateTrackerId(const uint8_t mac[6], uint8_t &trackerI
         file.close();
     }
 
-    uint16_t usedMask = 0;
+    uint16_t usedMask = retiredIds;
+    uint16_t savedMask = 0;
     if (LittleFS.exists(trackerMapPath)) {
         auto file = LittleFS.open(trackerMapPath, "r");
         uint8_t storedMac[6];
@@ -114,6 +109,7 @@ bool Configuration::getOrCreateTrackerId(const uint8_t mac[6], uint8_t &trackerI
                && file.read(&storedId, sizeof(storedId)) == sizeof(storedId)) {
             if (storedId < maxTrackers) {
                 usedMask |= (1u << storedId);
+                savedMask |= (1u << storedId);
             }
         }
         file.close();
@@ -132,7 +128,7 @@ bool Configuration::getOrCreateTrackerId(const uint8_t mac[6], uint8_t &trackerI
 		if (!written) return false;
 
         trackerId = id;
-        setSavedTrackerCount(id + 1);
+        setSavedTrackerCount(__builtin_popcount(savedMask) + 1);
         return true;
     }
 
@@ -140,6 +136,7 @@ bool Configuration::getOrCreateTrackerId(const uint8_t mac[6], uint8_t &trackerI
 }
 
 void Configuration::resetTrackers() {
+    std::lock_guard<std::mutex> lock(trackerMutex);
     if (LittleFS.exists(trackerMapPath) && !LittleFS.remove(trackerMapPath)) {
         Serial.println("Could not remove tracker map");
         return;
@@ -147,7 +144,33 @@ void Configuration::resetTrackers() {
     setSavedTrackerCount(0);
 }
 
+bool Configuration::removeTracker(uint8_t trackerId) {
+    std::lock_guard<std::mutex> lock(trackerMutex);
+    if (trackerId >= maxTrackers || !LittleFS.exists(trackerMapPath)) return false;
+    constexpr char tempPath[] = "/trackerMap.tmp";
+    auto input = LittleFS.open(trackerMapPath, "r");
+    auto output = LittleFS.open(tempPath, "w");
+    if (!input || !output) { input.close(); output.close(); return false; }
+    uint8_t record[7], removedMac[6] = {}; bool found = false, ok = true; uint8_t remaining = 0;
+    while (input.available()) {
+        if (input.read(record, sizeof(record)) != sizeof(record)) { ok = false; break; }
+        if (record[6] == trackerId) { memcpy(removedMac, record, 6); found = true; continue; }
+        if (output.write(record, sizeof(record)) != sizeof(record)) { ok = false; break; }
+        remaining++;
+    }
+    output.flush(); input.close(); output.close();
+    if (!ok || !found || !LittleFS.rename(tempPath, trackerMapPath)) {
+        LittleFS.remove(tempPath); return false;
+    }
+    // Do not reuse this HID identity while the host still has this session open.
+    retiredIds |= (1u << trackerId);
+    memcpy(removedMacs[trackerId], removedMac, 6);
+    setSavedTrackerCount(remaining);
+    return true;
+}
+
 void Configuration::printTrackers(Print &out) {
+    std::lock_guard<std::mutex> lock(trackerMutex);
     if (!LittleFS.exists(trackerMapPath)) {
         out.println("No stored trackers.");
         return;

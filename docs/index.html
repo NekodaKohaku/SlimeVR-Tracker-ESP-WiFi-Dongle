@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#07120f">
   <meta name="description" content="SlimeVR WiFi Dongle 的免安裝 Web Serial 控制台。">
   <title>NekoTora Dongle Manager</title>
-  <link rel="stylesheet" href="./styles.css?v=20260806-2">
+  <link rel="stylesheet" href="./styles.css?v=20261021-channels">
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -137,7 +137,7 @@
         </div>
         <div class="tracker-box">
           <div>
-            <pre id="tracker-list" data-i18n="trackerConnectPrompt">連接後即可讀取</pre>
+            <div id="tracker-list" data-i18n="trackerConnectPrompt">連接後即可讀取</div>
           </div>
           <div class="tracker-actions">
             <button class="button button-quiet" id="tracker-read" type="button" disabled data-i18n="readAgain">重新讀取</button>
@@ -149,6 +149,36 @@
           <div><span data-i18n="storedCapacity">已儲存</span><strong id="tracker-stored-capacity">— / 10</strong></div>
         </div>
       </article>
+    </section>
+
+    <section class="panel" aria-labelledby="channel-title">
+      <h2 id="channel-title" data-i18n="channelTitle">附近 WiFi AP 分布與選頻參考</h2>
+      <p data-i18n="channelIntro"></p><p data-i18n="channelLimits"></p>
+      <div class="form-actions"><button id="channel-start" class="button button-primary" type="button" disabled data-i18n="channelStart"></button><button id="channel-cancel" class="button button-quiet" type="button" disabled data-i18n="channelCancel"></button><button id="channel-read" class="button button-quiet" type="button" disabled data-i18n="channelRead"></button><button id="channel-save" class="button button-quiet" type="button" disabled data-i18n="channelSave"></button></div>
+      <p id="channel-state" role="status" aria-live="polite"></p><p id="channel-summary"></p>
+      <div id="channel-candidates" class="channel-candidates"></div>
+      <div style="overflow-x:auto"><table class="diagnostics-table"><thead><tr><th data-i18n="channelNumber"></th><th data-i18n="channelApCount"></th><th data-i18n="channelSignal"></th><th data-i18n="channelScore"></th></tr></thead><tbody id="channel-body"></tbody></table></div>
+      <p data-i18n="channelRange"></p><p data-i18n="channelAge"></p><p data-i18n="channelTesting"></p>
+    </section>
+    <section class="panel" aria-labelledby="diagnostics-title">
+      <h2 id="diagnostics-title" data-i18n="diagnosticsTitle">Tracker 診斷</h2>
+      <button class="button button-quiet" id="export-diagnostics" type="button" disabled data-i18n="exportDiagnostics">匯出診斷報告</button>
+      <p data-i18n="exportPrivacy">匯出版本、狀態與計數，不包含 WiFi 名稱、密碼、MAC 或 USB 序號。</p>
+      <p data-i18n="diagnosticsHelp">按更新狀態讀取；PPS 是 UDP 收包頻率，合併姿態不等於無線丟包。USB 失敗為可重試的提交失敗。</p>
+      <p id="diagnostics-summary">—</p>
+      <div style="overflow-x:auto"><table class="diagnostics-table">
+        <thead><tr><th scope="col"><span class="diagnostic-heading"><span data-i18n="diagId">ID</span><button class="diagnostic-help" type="button" data-diag-help="diagId" aria-label="說明：ID">?</button></span></th><th scope="col"><span class="diagnostic-heading"><span data-i18n="diagOnline">在線</span><button class="diagnostic-help" type="button" data-diag-help="diagOnline" aria-label="說明：在線">?</button></span></th><th scope="col"><span class="diagnostic-heading"><span data-i18n="diagRssi">RSSI</span><button class="diagnostic-help" type="button" data-diag-help="diagRssi" aria-label="說明：RSSI">?</button></span></th><th scope="col"><span class="diagnostic-heading"><span data-i18n="diagPps">UDP PPS</span><button class="diagnostic-help" type="button" data-diag-help="diagPps" aria-label="說明：UDP PPS">?</button></span></th><th scope="col"><span class="diagnostic-heading"><span data-i18n="diagAge">最後收包 (ms)</span><button class="diagnostic-help" type="button" data-diag-help="diagAge" aria-label="說明：最後收包 (ms)">?</button></span></th><th scope="col"><span class="diagnostic-heading"><span data-i18n="diagSensors">感測器 ID</span><button class="diagnostic-help" type="button" data-diag-help="diagSensors" aria-label="說明：感測器 ID">?</button></span></th><th scope="col"><span class="diagnostic-heading"><span data-i18n="diagRx">累積收包</span><button class="diagnostic-help" type="button" data-diag-help="diagRx" aria-label="說明：累積收包">?</button></span></th><th scope="col"><span class="diagnostic-heading"><span data-i18n="diagCoalesced">姿態合併</span><button class="diagnostic-help" type="button" data-diag-help="diagCoalesced" aria-label="說明：姿態合併">?</button></span></th><th scope="col"><span class="diagnostic-heading"><span data-i18n="diagUsb">USB 重試次數</span><button class="diagnostic-help" type="button" data-diag-help="diagUsb" aria-label="說明：USB 重試次數">?</button></span></th><th scope="col"><span class="diagnostic-heading"><span data-i18n="diagRejected">UDP 格式拒絕</span><button class="diagnostic-help" type="button" data-diag-help="diagRejected" aria-label="說明：UDP 格式拒絕">?</button></span></th><th scope="col"><span class="diagnostic-heading"><span data-i18n="diagDrops">控制佇列丟棄</span><button class="diagnostic-help" type="button" data-diag-help="diagDrops" aria-label="說明：控制佇列丟棄">?</button></span></th></tr></thead>
+        <tbody id="diagnostics-body"></tbody>
+      </table></div>
+      <p class="diagnostic-scroll-hint" data-i18n="diagScrollHint">表格可左右捲動，查看其餘欄位。</p>
+      <h3 data-i18n="sensorDetails">感測器獨立資訊</h3>
+      <div class="sensor-toolbar"><label for="sensor-tracker" data-i18n="chooseTracker">選擇 Tracker</label>
+      <select id="sensor-tracker" disabled></select>
+      <button class="button button-quiet" id="sensor-read" type="button" disabled data-i18n="readAgain">重新讀取</button></div>
+      <p data-i18n="sensorHelp">各感測器分別回報；— 表示未回報。近期姿態表示 1.5 秒內收到姿態，並非硬體故障判定。</p>
+      <div style="overflow-x:auto"><table class="diagnostics-table"><thead><tr>
+        <th data-i18n="diagId">Tracker ID</th><th data-i18n="sensorId">Sensor ID</th><th data-i18n="recentPose">近期姿態 (1/0)</th><th data-i18n="poseAge">最後姿態 (ms)</th><th data-i18n="reportedState">回報狀態</th><th>IMU</th><th data-i18n="sensorTemperature">溫度 (°C)</th><th data-i18n="poseTotal">累積姿態</th>
+      </tr></thead><tbody id="sensor-body"></tbody></table></div>
     </section>
 
     <section class="panel advanced-panel">
@@ -213,6 +243,7 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="./app.js?v=20260806-2" defer></script>
+  <div id="diagnostic-tooltip" class="diagnostic-tooltip" role="tooltip" hidden></div>
+  <script src="./app.js?v=20261021-channels" defer></script>
 </body>
 </html>

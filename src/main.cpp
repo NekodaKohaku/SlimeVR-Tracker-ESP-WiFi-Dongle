@@ -10,6 +10,7 @@
 #include "led.h"
 #include "packetHandling.h"
 #include "TrackerUdpReceiver.h"
+#include "ChannelAnalysis.h"
 
 #include <Arduino.h>
 #include <USB.h>
@@ -112,6 +113,7 @@ void loop() {
     button.update();
     led.update();
     receiver.update();
+    ChannelAnalysis::getInstance().update();
     PacketHandling::getInstance().tick(hidDevice);
     commandConsole.update();
     consoleStream.update();

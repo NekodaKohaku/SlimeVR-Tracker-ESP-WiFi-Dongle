@@ -18,6 +18,7 @@ stubs = r'''
 #include <cstdint>
 #include <cstring>
 #include <functional>
+#include <mutex>
 #include <string>
 #include <vector>
 using std::size_t;
@@ -51,6 +52,7 @@ void esp_wifi_get_config(int,wifi_config_t*) {} void esp_wifi_set_config(int,wif
 enum class ErrorCodes { NO_ERROR, AP_START_FAILED, UDP_LISTEN_FAILED };
 struct Configuration {
  static Configuration& getInstance() { static Configuration c; return c; }
+ bool removeTracker(uint8_t) {return true;}
  bool getOrCreateTrackerId(const uint8_t* mac,uint8_t& id) { id=mac[0]; return true; }
 };
 struct PacketHandling {
@@ -59,8 +61,12 @@ struct PacketHandling {
  static PacketHandling& getInstance() { static PacketHandling p; return p; }
  void insert(const uint8_t* p) { std::array<uint8_t,15> a; memcpy(a.data(),p,15); packets.push_back(a); }
  void setTrackerOnline(uint8_t id,bool online) { status.emplace_back(id,online); }
- void setBattery(uint8_t,uint8_t,uint16_t) {} void setTemp(uint8_t,uint8_t) {}
- void setRssi(uint8_t,int8_t) {} void setSensorInfo(uint8_t,uint8_t,uint8_t) {}
+ uint32_t rxCount=0, rejected=0;
+ void recordReception(uint8_t) {rxCount++;}
+ void recordRejectedUdp(uint8_t = 255) {rejected++;}
+ void setBattery(uint8_t,uint8_t,uint16_t) {} void forgetTracker(uint8_t) {}
+ void setTemp(uint8_t,uint8_t,uint8_t=0) {}
+ void setRssi(uint8_t,int8_t) {} void setSensorInfo(uint8_t,uint8_t,uint8_t,uint8_t=0,int=-1) {}
  void setFirmware(uint8_t,uint8_t,uint8_t,uint16_t,uint8_t,uint8_t,uint8_t) {}
 };
 '''
@@ -103,6 +109,21 @@ int main() {
  // A handshake/rebind clears acceleration from the old session.
  r.findOrAddPeer(a,IPAddress(4),6969,isNew);
  assert(p.accelFixed[0][0]==0 && p.accelFixed[1][0]==0);
+ auto& handler=PacketHandling::getInstance();
+ uint32_t rejectedBefore=handler.rejected, rxBefore=handler.rxCount;
+ AsyncUDPPacket malformed;malformed.ip=IPAddress(4);malformed.port=6969;
+ malformed.bytes={0,0,0,17};r.onPacket(malformed);
+ assert(handler.rejected==rejectedBefore+1 && handler.rxCount==rxBefore);
+ malformed.bytes.resize(31);malformed.bytes[3]=17;malformed.bytes[12]=16;
+ r.onPacket(malformed);assert(handler.rejected==rejectedBefore+2);
+ malformed.bytes[12]=0;r.onPacket(malformed);assert(handler.rxCount==rxBefore+1);
+ assert(r.forgetTracker(0)==TrackerUdpReceiver::ForgetResult::Active);
+ clockMs+=7000;
+ assert(r.forgetTracker(0)==TrackerUdpReceiver::ForgetResult::Removed);
+ assert(r.findPeerByEndpoint(IPAddress(4),6969)==-1);
+ assert(r.findOrAddPeer(a,IPAddress(2),6969,isNew)==-1);
+ assert(r.findPeerByEndpoint(IPAddress(2),6969)==1);
+
 }
 '''
 with tempfile.TemporaryDirectory() as tmp:
@@ -110,7 +131,7 @@ with tempfile.TemporaryDirectory() as tmp:
     config = without_includes((root/'src/WifiDongleConfig.h').read_text())
     header = without_includes((root/'src/TrackerUdpReceiver.h').read_text()).replace('private:', 'public:')
     impl = without_includes((root/'src/TrackerUdpReceiver.cpp').read_text())
-    source.write_text(stubs + config + header + impl + tests)
+    source.write_text(stubs + without_includes((root/"src/ChannelSurvey.h").read_text()) + config + header + impl + tests)
     binary = Path(tmp)/'receiver-test'
     subprocess.run([compiler,'-std=c++17','-fsanitize=address,undefined','-g',str(source),'-o',str(binary)], check=True)
     subprocess.run([str(binary)], check=True)

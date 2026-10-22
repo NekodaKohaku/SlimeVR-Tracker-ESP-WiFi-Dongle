@@ -4,6 +4,7 @@
 #include "packetHandling.h"
 #include "configuration.h"
 #include "esp_wifi.h"
+#include "ChannelSurvey.h"
 
 TrackerUdpReceiver TrackerUdpReceiver::instance;
 
@@ -44,37 +45,21 @@ ErrorCodes TrackerUdpReceiver::begin(
 }
 
 uint8_t TrackerUdpReceiver::pickBestChannel() {
-	WiFi.mode(WIFI_AP_STA);
-	int n = WiFi.scanNetworks(false, false);
-	if (n <= 0) {
-		WiFi.scanDelete();
-		Serial.println("[Receiver] channel scan: no APs found, default ch 1");
-		return 1;
-	}
+    WiFi.mode(WIFI_AP_STA);
+    int count = WiFi.scanNetworks(false, true);
+    ChannelSurvey survey;
+    for (int i = 0; i < count; i++) survey.add(WiFi.channel(i), WiFi.RSSI(i));
+    WiFi.scanDelete();
+    uint8_t best = survey.recommend(1);
+    return best == 0 ? 1 : best;
+}
 
-	const uint8_t cands[3] = {1, 6, 11};
-	long score[3] = {0, 0, 0};
-
-	for (int i = 0; i < n; i++) {
-		int ch = WiFi.channel(i);
-		int rssi = WiFi.RSSI(i);
-		long w = rssi + 100;
-		if (w < 1) w = 1;
-		for (int k = 0; k < 3; k++) {
-			int dist = abs(ch - static_cast<int>(cands[k]));
-			if (dist == 0)      score[k] += w * 4;
-			else if (dist <= 2) score[k] += w * 2;
-			else if (dist <= 4) score[k] += w * 1;
-		}
-	}
-	WiFi.scanDelete();
-
-	int best = 0;
-	for (int k = 1; k < 3; k++) if (score[k] < score[best]) best = k;
-
-	Serial.printf("[Receiver] channel scan: ch1=%ld ch6=%ld ch11=%ld -> pick ch %u\n",
-	              score[0], score[1], score[2], cands[best]);
-	return cands[best];
+bool TrackerUdpReceiver::hasActiveTrackers() {
+    std::lock_guard<std::mutex> lock(m_peerMutex);
+    uint32_t now = millis();
+    for (const auto &peer : m_peers)
+        if (peer.used && !peer.removed && peer.connected && uint32_t(now - peer.lastSeenMs) < kTrackerTimeoutMs) return true;
+    return false;
 }
 
 bool TrackerUdpReceiver::parseHandshake(const uint8_t *data, size_t len, uint8_t outMac[6],
@@ -110,48 +95,33 @@ int TrackerUdpReceiver::findPeerByEndpoint(const IPAddress &ip, uint16_t port) {
 }
 
 int TrackerUdpReceiver::findOrAddPeer(const uint8_t mac[6], const IPAddress &ip, uint16_t port, bool &isNew) {
-	isNew = false;
-	// A DHCP address may now belong to a different tracker. Keep its stable
-	// identity, but invalidate the previous endpoint before binding the new one.
-	for (auto &peer : m_peers) {
-		if (peer.used && peer.endpointBound && peer.ip == ip
-		    && memcmp(peer.mac, mac, 6) != 0) {
-			peer.endpointBound = false;
-			peer.connected = false;
-			PacketHandling::getInstance().setTrackerOnline(peer.trackerId, false);
-		}
-	}
-	int idx = findPeerByMac(mac);
-	if (idx >= 0) {
-		m_peers[idx].ip = ip;
-		m_peers[idx].port = port;
-		m_peers[idx].endpointBound = true;
-		memset(m_peers[idx].accelFixed, 0, sizeof(m_peers[idx].accelFixed));
-		return idx;
-	}
-
-	uint8_t stableId = 0;
-	if (!Configuration::getInstance().getOrCreateTrackerId(mac, stableId)) {
-		Serial.println("[Receiver] tracker table full (press BOOT 5 times to reset)");
-		return -1;
-	}
-	for (size_t i = 0; i < kMaxTrackers; i++) {
-		if (!m_peers[i].used) {
-			m_peers[i].used = true;
-			m_peers[i].trackerId = stableId;
-			memcpy(m_peers[i].mac, mac, 6);
-			m_peers[i].ip = ip;
-			m_peers[i].port = port;
-			m_peers[i].endpointBound = true;
-			m_peers[i].lastHeartbeatMs = 0;
-			isNew = true;
-			Serial.printf("[Receiver] new tracker id=%u mac=%02x:%02x:%02x:%02x:%02x:%02x ip=%s\n",
-				stableId, mac[0],mac[1],mac[2],mac[3],mac[4],mac[5],
-				ip.toString().c_str());
-			return static_cast<int>(i);
-		}
-	}
-	return -1;
+    isNew = false;
+    int idx = findPeerByMac(mac);
+    uint8_t stableId = 0;
+    if (idx >= 0) {
+        if (m_peers[idx].removed) return -1;
+        stableId = m_peers[idx].trackerId;
+    } else {
+        for (size_t i = 0; i < kMaxTrackers; i++)
+            if (!m_peers[i].used) { idx = static_cast<int>(i); break; }
+        if (idx < 0 || !Configuration::getInstance().getOrCreateTrackerId(mac, stableId)) return -1;
+        isNew = true;
+    }
+    // Only invalidate previous owners after the new binding has been accepted.
+    for (size_t i = 0; i < kMaxTrackers; i++) {
+        auto &peer = m_peers[i];
+        if (static_cast<int>(i) != idx && peer.used && peer.endpointBound && peer.ip == ip) {
+            peer.endpointBound = false; peer.connected = false;
+            PacketHandling::getInstance().setTrackerOnline(peer.trackerId, false);
+        }
+    }
+    auto &peer = m_peers[idx];
+    peer.used = true; peer.trackerId = stableId;
+    memcpy(peer.mac, mac, 6); peer.ip = ip; peer.port = port;
+    peer.endpointBound = true;
+    memset(peer.accelFixed, 0, sizeof(peer.accelFixed));
+    if (isNew) peer.lastHeartbeatMs = 0;
+    return idx;
 }
 
 void TrackerUdpReceiver::sendHandshakeReply(const IPAddress &ip, uint16_t port) {
@@ -228,7 +198,7 @@ void TrackerUdpReceiver::handleTemperature(Peer &p, const uint8_t *data, size_t 
 	if (len < 17) return;
 	float tempC = readBeFloat(&data[13]);
 	if (!std::isfinite(tempC)) return;
-	PacketHandling::getInstance().setTemp(p.trackerId, encodeTemp(tempC));
+	PacketHandling::getInstance().setTemp(p.trackerId, encodeTemp(tempC), data[12]);
 }
 
 void TrackerUdpReceiver::handleSignal(Peer &p, const uint8_t *data, size_t len) {
@@ -241,13 +211,17 @@ void TrackerUdpReceiver::handleSensorInfo(Peer &p, const uint8_t *data, size_t l
 	if (len < 15) return;
 
 	uint8_t imuId = data[14];
-	PacketHandling::getInstance().setSensorInfo(p.trackerId, imuId, 0);
+	PacketHandling::getInstance().setSensorInfo(p.trackerId, imuId, 0, data[12], data[13]);
 }
 
 void TrackerUdpReceiver::onPacket(AsyncUDPPacket &pkt) {
+    std::lock_guard<std::mutex> lock(m_peerMutex);
 	const uint8_t *data = pkt.data();
 	size_t len = pkt.length();
-	if (len < 4) return;
+	if (len < 12 || data[0] != 0 || data[1] != 0 || data[2] != 0) {
+        PacketHandling::getInstance().recordRejectedUdp();
+        return;
+    }
 
 	uint8_t type = data[3];
 
@@ -255,6 +229,7 @@ void TrackerUdpReceiver::onPacket(AsyncUDPPacket &pkt) {
 		uint8_t mac[6];
 		uint32_t boardType = 0, mcuType = 0, imuType = 0;
 		if (!parseHandshake(data, len, mac, boardType, mcuType, imuType)) {
+			PacketHandling::getInstance().recordRejectedUdp();
 			Serial.println("[Receiver] handshake parse failed");
 			return;
 		}
@@ -272,6 +247,7 @@ void TrackerUdpReceiver::onPacket(AsyncUDPPacket &pkt) {
 			m_onConnected(m_peers[idx].trackerId, m_peers[idx].mac);
 
 		PacketHandling::getInstance().setTrackerOnline(m_peers[idx].trackerId, true);
+		PacketHandling::getInstance().recordReception(m_peers[idx].trackerId);
 
 		PacketHandling::getInstance().setFirmware(
 			m_peers[idx].trackerId,
@@ -290,6 +266,26 @@ void TrackerUdpReceiver::onPacket(AsyncUDPPacket &pkt) {
 	int idx = findPeerByEndpoint(pkt.remoteIP(), pkt.remotePort());
 	if (idx < 0) return;
 	Peer &p = m_peers[idx];
+    bool valid = true;
+    switch (type) {
+        case PKT_SEND_ACCEL:
+            valid = len >= 25 && data[24] < kMaxSensors;
+            if (valid) for (unsigned offset : {12u, 16u, 20u}) valid = valid && std::isfinite(readBeFloat(data + offset));
+            break;
+        case PKT_SEND_ROTATION:
+            valid = len >= 31 && data[12] < kMaxSensors;
+            if (valid) for (unsigned offset : {14u, 18u, 22u, 26u}) valid = valid && std::isfinite(readBeFloat(data + offset));
+            break;
+        case PKT_SEND_BATTERY:
+            valid = len >= 20 && std::isfinite(readBeFloat(data + 12)) && std::isfinite(readBeFloat(data + 16)); break;
+        case PKT_SEND_TEMP:
+            valid = len >= 17 && data[12] < kMaxSensors && std::isfinite(readBeFloat(data + 13)); break;
+        case PKT_SEND_SIGNAL: valid = len >= 14; break;
+        case PKT_SEND_SENSORINFO: valid = len >= 15 && data[12] < kMaxSensors; break;
+        default: break;
+    }
+    if (!valid) { PacketHandling::getInstance().recordRejectedUdp(p.trackerId); return; }
+    PacketHandling::getInstance().recordReception(p.trackerId);
 
 	p.lastSeenMs = millis();
 	if (!p.connected) {
@@ -308,7 +304,29 @@ void TrackerUdpReceiver::onPacket(AsyncUDPPacket &pkt) {
 	}
 }
 
+TrackerUdpReceiver::ForgetResult TrackerUdpReceiver::forgetTracker(uint8_t trackerId) {
+    std::lock_guard<std::mutex> lock(m_peerMutex);
+    int idx = -1;
+    for (size_t i = 0; i < kMaxTrackers; i++) {
+        auto &peer = m_peers[i];
+        if (!peer.used || peer.trackerId != trackerId) continue;
+        idx = static_cast<int>(i);
+        if (peer.connected && uint32_t(millis() - peer.lastSeenMs) < kTrackerTimeoutMs)
+            return ForgetResult::Active;
+        break;
+    }
+    if (!Configuration::getInstance().removeTracker(trackerId)) return ForgetResult::Failed;
+    if (idx >= 0) {
+        m_peers[idx].connected = false;
+        m_peers[idx].endpointBound = false;
+        m_peers[idx].removed = true;
+    }
+    PacketHandling::getInstance().forgetTracker(trackerId);
+    return ForgetResult::Removed;
+}
+
 void TrackerUdpReceiver::update() {
+    std::lock_guard<std::mutex> lock(m_peerMutex);
 	uint32_t now = millis();
 	for (size_t i = 0; i < kMaxTrackers; i++) {
 		Peer &p = m_peers[i];

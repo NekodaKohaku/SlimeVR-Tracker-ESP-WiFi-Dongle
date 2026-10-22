@@ -5,6 +5,7 @@
 #include <LittleFS.h>
 #include <Print.h>
 #include <cstdint>
+#include <mutex>
 
 class Configuration {
 public:
@@ -14,6 +15,7 @@ public:
     void setSavedTrackerCount(uint8_t newValue);
     bool getOrCreateTrackerId(const uint8_t mac[6], uint8_t &trackerId);
     void resetTrackers();
+    bool removeTracker(uint8_t trackerId);
     void printTrackers(Print &out);
 
     const char *getWifiSsid() const;
@@ -29,6 +31,9 @@ private:
     Configuration() = default;
 
     static Configuration instance;
+    std::mutex trackerMutex;
+    uint16_t retiredIds = 0;
+    uint8_t removedMacs[16][6] = {};
 
     static constexpr char savedTrackerCountPath[] = "/savedTrackerCount.bin";
     static constexpr char trackerMapPath[] = "/trackerMap.bin";
